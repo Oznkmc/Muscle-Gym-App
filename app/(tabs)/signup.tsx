@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   StyleSheet,
-  SafeAreaView,
   View,
   Image,
   Text,
@@ -13,8 +12,8 @@ import {
   ScrollView,
   Alert,
   ActivityIndicator,
-  Animated,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { auth } from '../../lib/firebase';
@@ -24,14 +23,8 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-
-  // UX: Track focused field to provide visual feedback via conditional styling
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
-  /**
-   * Centralized form state to manage inputs as a single object.
-   * Facilitates cleaner data handling compared to individual state hooks.
-   */
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -40,7 +33,6 @@ export default function SignupScreen() {
     confirmPassword: '',
   });
 
-  // Client-side validation states for real-time UI feedback (borders, icons, error text)
   const [validations, setValidations] = useState({
     email: true,
     phone: true,
@@ -48,10 +40,6 @@ export default function SignupScreen() {
     confirmPassword: true,
   });
 
-  /**
-   * Password strength algorithm using Regex pattern matching.
-   * Evaluates entropy based on length, casing, digits, and special characters.
-   */
   const getPasswordStrength = (password: string) => {
     if (!password) return { strength: 0, label: '', color: '#ddd' };
 
@@ -71,22 +59,15 @@ export default function SignupScreen() {
 
   const passwordStrength = getPasswordStrength(form.password);
 
-  /** * Regex-based email validation. 
-   * Note: This is a basic pattern; Firebase also performs its own validation on the server side.
-   */
   const validateEmail = (email: string) => {
-    const regex = /\S+@\S+\.\S+/;
-    return regex.test(email);
+    const regex = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    return regex.test(String(email).toLowerCase());
   };
 
   const validatePhone = (phone: string) => {
     return phone.length >= 10;
   };
 
-  /**
-   * Comprehensive form validation before triggering API calls.
-   * Updates state to trigger UI changes for specific invalid fields.
-   */
   const validateForm = () => {
     const newValidations = {
       email: validateEmail(form.email.trim()),
@@ -98,40 +79,33 @@ export default function SignupScreen() {
     setValidations(newValidations);
 
     if (!form.name.trim()) {
-      Alert.alert('Hata', 'Lütfen adınızı girin.');
+      Alert.alert('Eksik Bilgi', 'Lütfen adınızı girin.');
       return false;
     }
 
     if (!newValidations.email) {
-      Alert.alert('Hata', 'Lütfen geçerli bir e-posta adresi girin.');
+      Alert.alert('Geçersiz E-posta', 'Lütfen geçerli bir e-posta adresi girin.');
       return false;
     }
 
     if (!newValidations.phone) {
-      Alert.alert('Hata', 'Lütfen geçerli bir telefon numarası girin (10 haneli).');
+      Alert.alert('Geçersiz Telefon', 'Lütfen geçerli bir telefon numarası girin (10 haneli).');
       return false;
     }
 
     if (!newValidations.password) {
-      Alert.alert('Hata', 'Şifre en az 6 karakter olmalıdır.');
+      Alert.alert('Zayıf Şifre', 'Şifre en az 6 karakter olmalıdır.');
       return false;
     }
 
     if (!newValidations.confirmPassword) {
-      Alert.alert('Hata', 'Şifreler birbiriyle eşleşmiyor.');
+      Alert.alert('Şifre Uyuşmazlığı', 'Şifreler birbiriyle eşleşmiyor.');
       return false;
     }
 
     return true;
   };
 
-  /**
-   * handleRegister: 
-   * 1. Validates form inputs.
-   * 2. Creates user in Firebase Auth.
-   * 3. Sends email verification for account security.
-   * 4. Handles specific Firebase Auth error codes for better user feedback.
-   */
   const handleRegister = async () => {
     if (!validateForm()) return;
 
@@ -139,11 +113,10 @@ export default function SignupScreen() {
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        form.email.trim(), // Trimming email to avoid white-space issues
+        form.email.trim(),
         form.password
       );
 
-      // Essential for security: Force user to verify email before accessing data
       await sendEmailVerification(userCredential.user);
 
       Alert.alert(
@@ -153,16 +126,14 @@ export default function SignupScreen() {
           {
             text: 'Tamam',
             onPress: () => router.replace('/'),
-            style: 'default'
           }
         ]
       );
 
     } catch (error: any) {
-      // Mapping Firebase technical error codes to user-friendly messages
       let msg = 'Kayıt yapılamadı. Lütfen tekrar dene.';
       if (error.code === 'auth/email-already-in-use') {
-        msg = 'Bu e-posta adresi zaten kayıtlı. Giriş yapmayı dene!';
+        msg = 'Bu e-posta adresi zaten kayıtlı.';
       }
       if (error.code === 'auth/invalid-email') {
         msg = 'Geçersiz e-posta formatı.';
@@ -170,7 +141,7 @@ export default function SignupScreen() {
       if (error.code === 'auth/weak-password') {
         msg = 'Şifre çok zayıf. Daha güçlü bir şifre seç.';
       }
-      Alert.alert('Kayıt Hatası', msg);
+      Alert.alert('Hata', msg);
     } finally {
       setLoading(false);
     }
@@ -178,353 +149,319 @@ export default function SignupScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      {/* KeyboardAvoidingView prevents the virtual keyboard from covering input fields on iOS/Android */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={{ flex: 1 }}
-      >
+        style={{ flex: 1 }}>
         <ScrollView
           contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled" // Allows pressing the 'Register' button without needing to dismiss the keyboard first
         >
-          <View style={styles.container}>
 
-            <View style={styles.header}>
-              <View style={styles.logoContainer}>
-                <Image
-                  source={require('../../assets/images/logo.jpeg')}
-                  style={styles.headerImg}
-                  resizeMode="contain"
-                />
-                <View style={styles.logoBadge}>
-                  <Ionicons name="fitness" size={20} color="#fff" />
-                </View>
-              </View>
-              <Text style={styles.title}>Hesap Oluştur</Text>
-              <Text style={styles.subtitle}>
-                Fitness yolculuğuna bugün başla! 💪
-              </Text>
+          <View style={styles.header}>
+            <View style={styles.logoContainer}>
+              <Image
+                source={require('../../assets/images/logo.jpeg')}
+                style={styles.headerImg}
+                resizeMode="cover"
+              />
+            </View>
+            <Text style={styles.title}>Hesap Oluştur</Text>
+            <Text style={styles.subtitle}>Fitness yolculuğuna bugün başla</Text>
+          </View>
+
+          <View style={styles.form}>
+
+            <View style={[
+              styles.inputWrapper,
+              focusedField === 'name' && styles.inputWrapperFocused,
+              form.name.trim() && styles.inputWrapperValid
+            ]}>
+              <Ionicons
+                name="person"
+                size={18}
+                color={focusedField === 'name' ? '#e10600' : '#e10600'}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.inputControl}
+                placeholder="Ad Soyad"
+                placeholderTextColor="#999"
+                value={form.name}
+                onChangeText={name => setForm({ ...form, name })}
+                onFocus={() => setFocusedField('name')}
+                onBlur={() => setFocusedField(null)}
+              />
+              {form.name.trim() && (
+                <Ionicons name="checkmark-circle" size={20} color="#00c853" />
+              )}
             </View>
 
+            <View style={[
+              styles.inputWrapper,
+              focusedField === 'email' && styles.inputWrapperFocused,
+              !validations.email && form.email && styles.inputWrapperError,
+              validations.email && form.email && styles.inputWrapperValid
+            ]}>
+              <Ionicons
+                name="mail"
+                size={18}
+                color={focusedField === 'email' ? '#e10600' : '#e10600'}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                autoCapitalize="none"
+                keyboardType="email-address"
+                style={styles.inputControl}
+                placeholder="E-posta adresiniz"
+                placeholderTextColor="#999"
+                value={form.email}
+                onChangeText={email => {
+                  setForm({ ...form, email });
+                  setValidations({ ...validations, email: true });
+                }}
+                onFocus={() => setFocusedField('email')}
+                onBlur={() => {
+                  setFocusedField(null);
+                  if (form.email) {
+                    setValidations({ ...validations, email: validateEmail(form.email) });
+                  }
+                }}
+              />
+              {validations.email && form.email && (
+                <Ionicons name="checkmark-circle" size={20} color="#00c853" />
+              )}
+              {!validations.email && form.email && (
+                <Ionicons name="close-circle" size={20} color="#ff4444" />
+              )}
+            </View>
+            {!validations.email && form.email && (
+              <Text style={styles.errorText}>Geçerli bir e-posta adresi girin</Text>
+            )}
 
-            <View style={styles.form}>
+            <View style={[
+              styles.inputWrapper,
+              focusedField === 'phone' && styles.inputWrapperFocused,
+              !validations.phone && form.phone && styles.inputWrapperError,
+              validations.phone && form.phone && styles.inputWrapperValid
+            ]}>
+              <Ionicons
+                name="call"
+                size={18}
+                color={focusedField === 'phone' ? '#e10600' : '#e10600'}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                style={styles.inputControl}
+                placeholder="Telefon numaranız"
+                placeholderTextColor="#999"
+                keyboardType="phone-pad"
+                maxLength={11}
+                value={form.phone}
+                onChangeText={phone => {
+                  setForm({ ...form, phone });
+                  setValidations({ ...validations, phone: true });
+                }}
+                onFocus={() => setFocusedField('phone')}
+                onBlur={() => {
+                  setFocusedField(null);
+                  if (form.phone) {
+                    setValidations({ ...validations, phone: validatePhone(form.phone) });
+                  }
+                }}
+              />
+              {validations.phone && form.phone && (
+                <Ionicons name="checkmark-circle" size={20} color="#00c853" />
+              )}
+              {!validations.phone && form.phone && (
+                <Ionicons name="close-circle" size={20} color="#ff4444" />
+              )}
+            </View>
+            {!validations.phone && form.phone && (
+              <Text style={styles.errorText}>En az 10 haneli telefon numarası girin</Text>
+            )}
 
-              {/* Input Group: Name */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Ad Soyad</Text>
-                <View style={[
-                  styles.inputWrapper,
-                  focusedField === 'name' && styles.inputWrapperFocused,
-                  form.name.trim() && styles.inputWrapperValid
-                ]}>
-                  <Ionicons
-                    name="person-outline"
-                    size={20}
-                    color={focusedField === 'name' ? '#e10600' : '#666'}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.inputControl}
-                    placeholder="Adın ve soyadın"
-                    placeholderTextColor="#aaa"
-                    value={form.name}
-                    onChangeText={name => setForm({ ...form, name })}
-                    onFocus={() => setFocusedField('name')}
-                    onBlur={() => setFocusedField(null)}
-                  />
-                  {form.name.trim() && (
-                    <Ionicons name="checkmark-circle" size={20} color="#00c853" />
-                  )}
-                </View>
-              </View>
-
-              {/* Input Group: Email */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>E-posta Adresi</Text>
-                <View style={[
-                  styles.inputWrapper,
-                  focusedField === 'email' && styles.inputWrapperFocused,
-                  !validations.email && form.email && styles.inputWrapperError,
-                  validations.email && form.email && styles.inputWrapperValid
-                ]}>
-                  <Ionicons
-                    name="mail-outline"
-                    size={20}
-                    color={focusedField === 'email' ? '#e10600' : '#666'}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.inputControl}
-                    placeholder="ornek@email.com"
-                    placeholderTextColor="#aaa"
-                    keyboardType="email-address"
-                    autoCapitalize="none" // Essential for email inputs
-                    value={form.email}
-                    onChangeText={email => {
-                      setForm({ ...form, email });
-                      setValidations({ ...validations, email: true });
-                    }}
-                    onFocus={() => setFocusedField('email')}
-                    onBlur={() => {
-                      setFocusedField(null);
-                      if (form.email) {
-                        setValidations({ ...validations, email: validateEmail(form.email) });
-                      }
-                    }}
-                  />
-                  {validations.email && form.email && (
-                    <Ionicons name="checkmark-circle" size={20} color="#00c853" />
-                  )}
-                  {!validations.email && form.email && (
-                    <Ionicons name="close-circle" size={20} color="#ff4444" />
-                  )}
-                </View>
-                {!validations.email && form.email && (
-                  <Text style={styles.errorText}>Geçerli bir e-posta adresi girin</Text>
-                )}
-              </View>
-
-              {/* Input Group: Phone */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Telefon Numarası</Text>
-                <View style={[
-                  styles.inputWrapper,
-                  focusedField === 'phone' && styles.inputWrapperFocused,
-                  !validations.phone && form.phone && styles.inputWrapperError,
-                  validations.phone && form.phone && styles.inputWrapperValid
-                ]}>
-                  <Ionicons
-                    name="call-outline"
-                    size={20}
-                    color={focusedField === 'phone' ? '#e10600' : '#666'}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.inputControl}
-                    placeholder="5XX XXX XX XX"
-                    placeholderTextColor="#aaa"
-                    keyboardType="phone-pad"
-                    maxLength={11}
-                    value={form.phone}
-                    onChangeText={phone => {
-                      setForm({ ...form, phone });
-                      setValidations({ ...validations, phone: true });
-                    }}
-                    onFocus={() => setFocusedField('phone')}
-                    onBlur={() => {
-                      setFocusedField(null);
-                      if (form.phone) {
-                        setValidations({ ...validations, phone: validatePhone(form.phone) });
-                      }
-                    }}
-                  />
-                  {validations.phone && form.phone && (
-                    <Ionicons name="checkmark-circle" size={20} color="#00c853" />
-                  )}
-                </View>
-                {!validations.phone && form.phone && (
-                  <Text style={styles.errorText}>En az 10 haneli telefon numarası girin</Text>
-                )}
-              </View>
-
-              {/* Input Group: Password with Strength Meter */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Şifre</Text>
-                <View style={[
-                  styles.inputWrapper,
-                  focusedField === 'password' && styles.inputWrapperFocused,
-                  !validations.password && form.password && styles.inputWrapperError
-                ]}>
-                  <Ionicons
-                    name="lock-closed-outline"
-                    size={20}
-                    color={focusedField === 'password' ? '#e10600' : '#666'}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.inputControl}
-                    placeholder="En az 6 karakter"
-                    placeholderTextColor="#aaa"
-                    secureTextEntry={!showPassword}
-                    value={form.password}
-                    onChangeText={password => {
-                      setForm({ ...form, password });
-                      setValidations({ ...validations, password: true });
-                    }}
-                    onFocus={() => setFocusedField('password')}
-                    onBlur={() => setFocusedField(null)}
-                  />
-                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                    <Ionicons
-                      name={showPassword ? "eye-off-outline" : "eye-outline"}
-                      size={20}
-                      color="#666"
-                    />
-                  </TouchableOpacity>
-                </View>
-
-                {/* Password Strength Visual Feedback */}
-                {form.password.length > 0 && (
-                  <View style={styles.passwordStrengthContainer}>
-                    <View style={styles.strengthBarBackground}>
-                      <View
-                        style={[
-                          styles.strengthBarFill,
-                          {
-                            width: `${passwordStrength.strength}%`,
-                            backgroundColor: passwordStrength.color
-                          }
-                        ]}
-                      />
-                    </View>
-                    <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
-                      {passwordStrength.label}
-                    </Text>
-                  </View>
-                )}
-
-                {/* Real-time Requirement Validation Checklist */}
-                <View style={styles.passwordRequirements}>
-                  <View style={styles.requirementItem}>
-                    <Ionicons
-                      name={form.password.length >= 6 ? "checkmark-circle" : "ellipse-outline"}
-                      size={16}
-                      color={form.password.length >= 6 ? "#00c853" : "#ccc"}
-                    />
-                    <Text style={[
-                      styles.requirementText,
-                      form.password.length >= 6 && styles.requirementTextMet
-                    ]}>
-                      En az 6 karakter
-                    </Text>
-                  </View>
-                  <View style={styles.requirementItem}>
-                    <Ionicons
-                      name={/\d/.test(form.password) ? "checkmark-circle" : "ellipse-outline"}
-                      size={16}
-                      color={/\d/.test(form.password) ? "#00c853" : "#ccc"}
-                    />
-                    <Text style={[
-                      styles.requirementText,
-                      /\d/.test(form.password) && styles.requirementTextMet
-                    ]}>
-                      En az bir rakam
-                    </Text>
-                  </View>
-                  <View style={styles.requirementItem}>
-                    <Ionicons
-                      name={/[A-Z]/.test(form.password) ? "checkmark-circle" : "ellipse-outline"}
-                      size={16}
-                      color={/[A-Z]/.test(form.password) ? "#00c853" : "#ccc"}
-                    />
-                    <Text style={[
-                      styles.requirementText,
-                      /[A-Z]/.test(form.password) && styles.requirementTextMet
-                    ]}>
-                      Büyük harf
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* Input Group: Password Confirmation */}
-              <View style={styles.inputGroup}>
-                <Text style={styles.inputLabel}>Şifre Tekrar</Text>
-                <View style={[
-                  styles.inputWrapper,
-                  focusedField === 'confirmPassword' && styles.inputWrapperFocused,
-                  !validations.confirmPassword && form.confirmPassword && styles.inputWrapperError,
-                  validations.confirmPassword && form.confirmPassword && styles.inputWrapperValid
-                ]}>
-                  <Ionicons
-                    name="shield-checkmark-outline"
-                    size={20}
-                    color={focusedField === 'confirmPassword' ? '#e10600' : '#666'}
-                    style={styles.inputIcon}
-                  />
-                  <TextInput
-                    style={styles.inputControl}
-                    placeholder="Şifreni tekrar gir"
-                    placeholderTextColor="#aaa"
-                    secureTextEntry={!showConfirmPassword}
-                    value={form.confirmPassword}
-                    onChangeText={confirmPassword => {
-                      setForm({ ...form, confirmPassword });
-                      setValidations({ ...validations, confirmPassword: true });
-                    }}
-                    onFocus={() => setFocusedField('confirmPassword')}
-                    onBlur={() => {
-                      setFocusedField(null);
-                      if (form.confirmPassword) {
-                        setValidations({
-                          ...validations,
-                          confirmPassword: form.password === form.confirmPassword
-                        });
-                      }
-                    }}
-                  />
-                  <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
-                    <Ionicons
-                      name={showConfirmPassword ? "eye-off-outline" : "eye-outline"}
-                      size={20}
-                      color="#666"
-                    />
-                  </TouchableOpacity>
-                </View>
-                {!validations.confirmPassword && form.confirmPassword && (
-                  <Text style={styles.errorText}>Şifreler eşleşmiyor</Text>
-                )}
-                {validations.confirmPassword && form.confirmPassword && (
-                  <View style={styles.successMessage}>
-                    <Ionicons name="checkmark-circle" size={16} color="#00c853" />
-                    <Text style={styles.successText}>Şifreler eşleşiyor!</Text>
-                  </View>
-                )}
-              </View>
-
-              <TouchableOpacity
-                onPress={handleRegister}
-                disabled={loading}
-                activeOpacity={0.8}
-              >
-                <View style={[styles.btn, loading && styles.btnDisabled]}>
-                  {loading ? (
-                    <ActivityIndicator color="#fff" size="small" />
-                  ) : (
-                    <>
-                      <Text style={styles.btnText}>Hesabı Oluştur</Text>
-                      <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />
-                    </>
-                  )}
-                </View>
+            <View style={[
+              styles.inputWrapper,
+              focusedField === 'password' && styles.inputWrapperFocused,
+              !validations.password && form.password && styles.inputWrapperError
+            ]}>
+              <Ionicons
+                name="lock-closed"
+                size={18}
+                color={focusedField === 'password' ? '#e10600' : '#e10600'}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                secureTextEntry={!showPassword}
+                style={styles.inputControl}
+                placeholder="Şifreniz"
+                placeholderTextColor="#999"
+                value={form.password}
+                onChangeText={password => {
+                  setForm({ ...form, password });
+                  setValidations({ ...validations, password: true });
+                }}
+                onFocus={() => setFocusedField('password')}
+                onBlur={() => setFocusedField(null)}
+              />
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeBtn}>
+                <Ionicons
+                  name={showPassword ? "eye-off" : "eye"}
+                  size={20}
+                  color="#666"
+                />
               </TouchableOpacity>
+            </View>
 
-              <View style={styles.infoBox}>
-                <Ionicons name="information-circle" size={20} color="#007AFF" />
-                <Text style={styles.infoText}>
-                  Kaydını tamamladıktan sonra e-posta adresine gönderilen doğrulama linkine tıklaman gerekiyor.
+            {form.password.length > 0 && (
+              <View style={styles.passwordStrengthContainer}>
+                <View style={styles.strengthBarBackground}>
+                  <View
+                    style={[
+                      styles.strengthBarFill,
+                      {
+                        width: `${passwordStrength.strength}%`,
+                        backgroundColor: passwordStrength.color
+                      }
+                    ]}
+                  />
+                </View>
+                <Text style={[styles.strengthLabel, { color: passwordStrength.color }]}>
+                  {passwordStrength.label}
                 </Text>
               </View>
+            )}
 
+            <View style={styles.passwordRequirements}>
+              <View style={styles.requirementItem}>
+                <Ionicons
+                  name={form.password.length >= 6 ? "checkmark-circle" : "ellipse-outline"}
+                  size={16}
+                  color={form.password.length >= 6 ? "#00c853" : "#ccc"}
+                />
+                <Text style={[
+                  styles.requirementText,
+                  form.password.length >= 6 && styles.requirementTextMet
+                ]}>
+                  En az 6 karakter
+                </Text>
+              </View>
+              <View style={styles.requirementItem}>
+                <Ionicons
+                  name={/\d/.test(form.password) ? "checkmark-circle" : "ellipse-outline"}
+                  size={16}
+                  color={/\d/.test(form.password) ? "#00c853" : "#ccc"}
+                />
+                <Text style={[
+                  styles.requirementText,
+                  /\d/.test(form.password) && styles.requirementTextMet
+                ]}>
+                  En az bir rakam
+                </Text>
+              </View>
+              <View style={styles.requirementItem}>
+                <Ionicons
+                  name={/[A-Z]/.test(form.password) ? "checkmark-circle" : "ellipse-outline"}
+                  size={16}
+                  color={/[A-Z]/.test(form.password) ? "#00c853" : "#ccc"}
+                />
+                <Text style={[
+                  styles.requirementText,
+                  /[A-Z]/.test(form.password) && styles.requirementTextMet
+                ]}>
+                  Büyük harf
+                </Text>
+              </View>
             </View>
 
-            <View style={styles.footerContainer}>
-              <View style={styles.divider}>
-                <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>veya</Text>
-                <View style={styles.dividerLine} />
-              </View>
-
-              <TouchableOpacity onPress={() => router.back()}>
-                <View style={styles.secondaryBtn}>
-                  <Ionicons name="log-in-outline" size={20} color="#e10600" />
-                  <Text style={styles.secondaryBtnText}>Zaten hesabım var, giriş yap</Text>
-                </View>
+            <View style={[
+              styles.inputWrapper,
+              focusedField === 'confirmPassword' && styles.inputWrapperFocused,
+              !validations.confirmPassword && form.confirmPassword && styles.inputWrapperError,
+              validations.confirmPassword && form.confirmPassword && styles.inputWrapperValid
+            ]}>
+              <Ionicons
+                name="shield-checkmark"
+                size={18}
+                color={focusedField === 'confirmPassword' ? '#e10600' : '#e10600'}
+                style={styles.inputIcon}
+              />
+              <TextInput
+                secureTextEntry={!showConfirmPassword}
+                style={styles.inputControl}
+                placeholder="Şifre tekrar"
+                placeholderTextColor="#999"
+                value={form.confirmPassword}
+                onChangeText={confirmPassword => {
+                  setForm({ ...form, confirmPassword });
+                  setValidations({ ...validations, confirmPassword: true });
+                }}
+                onFocus={() => setFocusedField('confirmPassword')}
+                onBlur={() => {
+                  setFocusedField(null);
+                  if (form.confirmPassword) {
+                    setValidations({
+                      ...validations,
+                      confirmPassword: form.password === form.confirmPassword
+                    });
+                  }
+                }}
+              />
+              <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)} style={styles.eyeBtn}>
+                <Ionicons
+                  name={showConfirmPassword ? "eye-off" : "eye"}
+                  size={20}
+                  color="#666"
+                />
               </TouchableOpacity>
             </View>
+            {!validations.confirmPassword && form.confirmPassword && (
+              <Text style={styles.errorText}>Şifreler eşleşmiyor</Text>
+            )}
+            {validations.confirmPassword && form.confirmPassword && (
+              <View style={styles.successMessage}>
+                <Ionicons name="checkmark-circle" size={16} color="#00c853" />
+                <Text style={styles.successText}>Şifreler eşleşiyor!</Text>
+              </View>
+            )}
 
+            <TouchableOpacity onPress={handleRegister} disabled={loading} activeOpacity={0.8}>
+              <View style={[styles.btn, loading && { opacity: 0.8 }]}>
+                {loading ? (
+                  <ActivityIndicator color="#fff" />
+                ) : (
+                  <View style={styles.btnContent}>
+                    <Text style={styles.btnText}>Kayıt Ol</Text>
+                    <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.infoBox}>
+              <Ionicons name="information-circle" size={20} color="#e10600" />
+              <Text style={styles.infoText}>
+                Kaydını tamamladıktan sonra e-posta adresine gönderilen doğrulama linkine tıklaman gerekiyor.
+              </Text>
+            </View>
           </View>
+
+          <View style={styles.footerContainer}>
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>veya</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <TouchableOpacity onPress={() => router.back()}>
+              <View style={styles.secondaryBtn}>
+                <Text style={styles.secondaryBtnText}>Zaten hesabım var, giriş yap</Text>
+                <Ionicons name="arrow-forward" size={18} color="#1A1A1A" />
+              </View>
+            </TouchableOpacity>
+          </View>
+
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -532,39 +469,28 @@ export default function SignupScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#f9f9f9'
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingBottom: 30
-  },
-  container: {
-    padding: 24
-  },
-
-
-  header: {
-    alignItems: 'center',
-    marginBottom: 32,
-    marginTop: 20
-  },
+  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 28, paddingBottom: 24 },
+  header: { alignItems: 'center', marginTop: 50, marginBottom: 40 },
   logoContainer: {
     position: 'relative',
-    marginBottom: 20
+    width: 90,
+    height: 90,
+    borderRadius: 28,
+    overflow: 'hidden',
+    marginBottom: 20,
+    backgroundColor: '#fff',
+    shadowColor: '#e10600',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    elevation: 8,
   },
-  headerImg: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    borderWidth: 3,
-    borderColor: '#e10600'
-  },
+  headerImg: { width: '100%', height: '100%' },
   logoBadge: {
     position: 'absolute',
-    bottom: 0,
-    right: 0,
+    bottom: -2,
+    right: -2,
     backgroundColor: '#e10600',
     width: 32,
     height: 32,
@@ -572,84 +498,50 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#f9f9f9'
+    borderColor: '#FFFFFF'
   },
-  title: {
-    fontSize: 32,
-    fontWeight: '800',
-    color: '#1d1d1d',
-    marginBottom: 8
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#666',
-    textAlign: 'center',
-    lineHeight: 22
-  },
-
-
-  form: {
-    marginBottom: 24
-  },
-  inputGroup: {
-    marginBottom: 20
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-    marginBottom: 8,
-    marginLeft: 4
-  },
+  title: { fontSize: 34, fontWeight: '900', color: '#1A1A1A', letterSpacing: -1 },
+  subtitle: { fontSize: 15, color: '#888', marginTop: 6, fontWeight: '500' },
+  form: { width: '100%' },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 14,
+    backgroundColor: '#F7F8FA',
+    borderRadius: 20,
+    paddingHorizontal: 18,
+    marginBottom: 16,
+    height: 64,
     borderWidth: 2,
-    borderColor: '#e8e8e8',
-    paddingHorizontal: 16,
-    height: 56,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2
+    borderColor: 'transparent',
   },
   inputWrapperFocused: {
     borderColor: '#e10600',
-    backgroundColor: '#fff',
-    shadowOpacity: 0.1,
-    elevation: 4
+    backgroundColor: '#FFF',
   },
   inputWrapperError: {
     borderColor: '#ff4444',
-    backgroundColor: '#fff5f5'
+    backgroundColor: '#FFF5F5',
   },
   inputWrapperValid: {
     borderColor: '#00c853',
-    backgroundColor: '#f1f8f4'
+    backgroundColor: '#F1F8F4',
   },
-  inputIcon: {
-    marginRight: 12
-  },
-  inputControl: {
-    flex: 1,
-    fontSize: 16,
-    color: '#333',
-    fontWeight: '500'
-  },
+  inputIcon: { marginRight: 14 },
+  inputControl: { flex: 1, color: '#1A1A1A', fontSize: 15, fontWeight: '600' },
+  eyeBtn: { padding: 4 },
   errorText: {
     fontSize: 12,
     color: '#ff4444',
-    marginTop: 6,
+    marginTop: -12,
+    marginBottom: 12,
     marginLeft: 4,
-    fontWeight: '500'
+    fontWeight: '600'
   },
   successMessage: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 6,
+    marginTop: -12,
+    marginBottom: 12,
     marginLeft: 4,
     gap: 6
   },
@@ -658,14 +550,14 @@ const styles = StyleSheet.create({
     color: '#00c853',
     fontWeight: '600'
   },
-
-
   passwordStrengthContainer: {
-    marginTop: 12
+    marginTop: -8,
+    marginBottom: 12,
+    marginHorizontal: 4,
   },
   strengthBarBackground: {
     height: 6,
-    backgroundColor: '#e8e8e8',
+    backgroundColor: '#E8E8E8',
     borderRadius: 3,
     overflow: 'hidden'
   },
@@ -675,18 +567,18 @@ const styles = StyleSheet.create({
   },
   strengthLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: '700',
     marginTop: 6,
     textAlign: 'right'
   },
-
-
   passwordRequirements: {
-    marginTop: 12,
+    marginTop: -4,
+    marginBottom: 16,
     padding: 12,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    gap: 8
+    backgroundColor: '#F7F8FA',
+    borderRadius: 16,
+    gap: 8,
+    marginHorizontal: 4,
   },
   requirementItem: {
     flexDirection: 'row',
@@ -702,69 +594,40 @@ const styles = StyleSheet.create({
     color: '#00c853',
     fontWeight: '600'
   },
-
-
   infoBox: {
     flexDirection: 'row',
-    backgroundColor: '#E3F2FD',
+    backgroundColor: '#FFF5F5',
     padding: 16,
-    borderRadius: 12,
-    marginTop: 20,
+    borderRadius: 20,
+    marginTop: 8,
     gap: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#007AFF'
+    borderLeftColor: '#e10600'
   },
   infoText: {
     flex: 1,
     fontSize: 13,
-    color: '#1565C0',
+    color: '#e10600',
     lineHeight: 18,
-    fontWeight: '500'
+    fontWeight: '600'
   },
-
-
   btn: {
     backgroundColor: '#e10600',
-    borderRadius: 14,
-    height: 56,
-    flexDirection: 'row',
+    borderRadius: 22,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 8,
     shadowColor: '#e10600',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 5
+    shadowRadius: 12,
+    elevation: 6,
+    marginTop: 8,
   },
-  btnDisabled: {
-    opacity: 0.6
-  },
-  btnText: {
-    color: '#fff',
-    fontSize: 18,
-    fontWeight: '700',
-    letterSpacing: 0.5
-  },
-  secondaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 14,
-    height: 56,
-    borderWidth: 2,
-    borderColor: '#e10600',
-    gap: 8
-  },
-  secondaryBtnText: {
-    color: '#e10600',
-    fontSize: 16,
-    fontWeight: '700'
-  },
-
+  btnContent: { flexDirection: 'row', alignItems: 'center' },
+  btnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
   footerContainer: {
-    marginTop: 20
+    marginTop: 24
   },
   divider: {
     flexDirection: 'row',
@@ -774,12 +637,26 @@ const styles = StyleSheet.create({
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: '#e0e0e0'
+    backgroundColor: '#E0E0E0'
   },
   dividerText: {
     marginHorizontal: 16,
     fontSize: 14,
     color: '#999',
     fontWeight: '600'
-  }
+  },
+  secondaryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F7F8FA',
+    borderRadius: 22,
+    height: 64,
+    gap: 8
+  },
+  secondaryBtnText: {
+    color: '#1A1A1A',
+    fontSize: 15,
+    fontWeight: '800'
+  },
 });

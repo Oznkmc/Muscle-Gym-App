@@ -1,16 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { auth, db } from '../../lib/firebase';
 import { Ionicons } from '@expo/vector-icons';
-
 import { collection, query, where, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 
-/**
- * DynamicHomeScreen: Ana dashboard.
- * Çıkış yaparken oluşan "permission-denied" hatası için optimize edildi.
- */
 export default function DynamicHomeScreen() {
   const router = useRouter();
   const user = auth.currentUser;
@@ -20,7 +15,6 @@ export default function DynamicHomeScreen() {
   const [workoutCount, setWorkoutCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // Dinleyicileri temizlemek için referanslar
   const dietUnsubRef = useRef<Unsubscribe | null>(null);
   const workoutUnsubRef = useRef<Unsubscribe | null>(null);
 
@@ -30,14 +24,14 @@ export default function DynamicHomeScreen() {
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
-    // 1. Diet Listener
     const qDiet = query(collection(db, "userDiets"), where("userId", "==", user.uid));
     dietUnsubRef.current = onSnapshot(qDiet, (snapshot) => {
-      let totalKcal = 0; let totalProtein = 0;
+      let totalKcal = 0;
+      let totalProtein = 0;
       snapshot.forEach((doc) => {
         const data = doc.data();
         const createdAt = data.createdAt?.toDate();
-        if (createdAt >= startOfToday) {
+        if (createdAt && createdAt >= startOfToday) {
           totalKcal += parseFloat(data.kcal || 0);
           totalProtein += parseFloat(data.protein || 0);
         }
@@ -45,33 +39,31 @@ export default function DynamicHomeScreen() {
       setDailyKcal(totalKcal);
       setDailyProtein(totalProtein);
     }, (error) => {
-      // Çıkış anındaki yetki hatasını konsola basma
-      if (error.code !== 'permission-denied') console.error("Diet Listener Error:", error);
+      if (error.code !== 'permission-denied') console.error(error);
     });
 
-    // 2. Workout Listener
     const qWorkout = query(collection(db, "userWorkouts"), where("userId", "==", user.uid));
     workoutUnsubRef.current = onSnapshot(qWorkout, (snapshot) => {
       let count = 0;
       snapshot.forEach((doc) => {
-        const createdAt = doc.data().createdAt?.toDate();
-        if (createdAt >= startOfToday) count++;
+        const data = doc.data();
+        const createdAt = data.createdAt?.toDate();
+        if (createdAt && createdAt >= startOfToday) count++;
       });
       setWorkoutCount(count);
       setLoading(false);
     }, (error) => {
-      if (error.code !== 'permission-denied') console.error("Workout Listener Error:", error);
+      if (error.code !== 'permission-denied') console.error(error);
     });
 
     return () => {
-      dietUnsubRef.current?.();
-      workoutUnsubRef.current?.();
+      if (dietUnsubRef.current) dietUnsubRef.current();
+      if (workoutUnsubRef.current) workoutUnsubRef.current();
     };
   }, [user?.uid]);
 
   const handleLogout = async () => {
     try {
-      // Önce dinleyicileri durdur ve referansları boşa çıkar
       if (dietUnsubRef.current) {
         dietUnsubRef.current();
         dietUnsubRef.current = null;
@@ -80,20 +72,17 @@ export default function DynamicHomeScreen() {
         workoutUnsubRef.current();
         workoutUnsubRef.current = null;
       }
-
-      // Yarış durumunu (race condition) önlemek için çok kısa bekleme
-      await new Promise(resolve => setTimeout(resolve, 150));
-
+      await new Promise(resolve => setTimeout(resolve, 200));
       await signOut(auth);
       router.replace('/');
     } catch (error) {
-      console.error("Logout Error:", error);
+      console.error(error);
     }
   };
 
   if (loading) {
     return (
-      <View style={[styles.container, { justifyContent: 'center' }]}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#e10600" />
       </View>
     );
@@ -101,105 +90,129 @@ export default function DynamicHomeScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-
       <View style={styles.header}>
         <View>
-          <Text style={styles.greet}>Bugün Durumun Nedir? ⚡</Text>
-          <Text style={styles.userName}>{user?.email?.split('@')[0] || 'Şampiyon'}</Text>
+          <Text style={styles.greetText}>GÜNLÜK ÖZET ⚡</Text>
+          <Text style={styles.userNameText}>{user?.email?.split('@')[0] || 'Şampiyon'}</Text>
         </View>
-        <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={26} color="#e10600" />
+        <TouchableOpacity style={styles.exitBtn} onPress={handleLogout}>
+          <Ionicons name="log-out-outline" size={24} color="#e10600" />
         </TouchableOpacity>
       </View>
 
-      <View style={styles.statsRow}>
-        <View style={styles.statCard}>
-          <Ionicons name="flame" size={28} color="#FF9500" />
-          <Text style={styles.statNum}>{dailyKcal.toFixed(0)}</Text>
-          <Text style={styles.statLabel}>Alınan Kcal</Text>
+      <View style={styles.statsContainer}>
+        <View style={styles.statBox}>
+          <View style={[styles.iconCircle, { backgroundColor: '#FFF9F0' }]}>
+            <Ionicons name="flame" size={22} color="#FF9500" />
+          </View>
+          <Text style={styles.statValue}>{dailyKcal.toFixed(0)}</Text>
+          <Text style={styles.statTitle}>Kcal</Text>
         </View>
 
-        <View style={styles.statCard}>
-          <Ionicons name="fitness" size={28} color="#e10600" />
-          <Text style={styles.statNum}>{workoutCount}</Text>
-          <Text style={styles.statLabel}>Antrenman</Text>
+        <View style={styles.statBox}>
+          <View style={[styles.iconCircle, { backgroundColor: '#FFF5F5' }]}>
+            <Ionicons name="fitness" size={22} color="#e10600" />
+          </View>
+          <Text style={styles.statValue}>{workoutCount}</Text>
+          <Text style={styles.statTitle}>Antrenman</Text>
         </View>
 
-        <View style={styles.statCard}>
-          <Ionicons name="egg" size={28} color="#34C759" />
-          <Text style={[styles.statNum, { color: '#34C759' }]}>{dailyProtein.toFixed(1)}g</Text>
-          <Text style={styles.statLabel}>Protein</Text>
+        <View style={styles.statBox}>
+          <View style={[styles.iconCircle, { backgroundColor: '#F2FFF5' }]}>
+            <Ionicons name="egg" size={22} color="#34C759" />
+          </View>
+          <Text style={[styles.statValue, { color: '#34C759' }]}>{dailyProtein.toFixed(1)}g</Text>
+          <Text style={styles.statTitle}>Protein</Text>
         </View>
       </View>
 
-      <View style={styles.infoBox}>
-        <Text style={styles.infoText}>
+      <View style={styles.messageBanner}>
+        <Text style={styles.bannerText}>
           {dailyKcal === 0
-            ? "Henüz bir şey yemedin mi? Enerji toplamalısın! 🍎"
+            ? "Vücudunu yakıtsız bırakma, bugün henüz veri girmedin. 🍎"
             : workoutCount === 0
-              ? "Beslenmen güzel, ama bugün henüz antrenman yapmadın! 💪"
-              : "Harika gidiyorsun, disiplin seni şampiyon yapar! 🔥"}
+              ? "Enerji harika, şimdi bu gücü demirlerle paylaşma vakti! 💪"
+              : "Hedefine odaklı kal, bugün harika bir disiplin sergiliyorsun! 🔥"}
         </Text>
       </View>
 
-      <View style={styles.section}>
-        <TouchableOpacity style={styles.mainAction} onPress={() => router.push('/diet')}>
-          <View style={styles.actionIcon}><Ionicons name="nutrition" size={26} color="#fff" /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.actionTitle}>Beslenme Kaydı</Text>
-            <Text style={styles.actionSub}>Hemen bir şeyler ekle</Text>
+      <View style={styles.menuSection}>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/diet')}>
+          <View style={[styles.menuIcon, { backgroundColor: '#e10600' }]}><Ionicons name="nutrition" size={22} color="#fff" /></View>
+          <View style={styles.menuContent}>
+            <Text style={styles.menuTitle}>Beslenme Kaydı</Text>
+            <Text style={styles.menuSub}>Öğünlerini yönet</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#DDD" />
+          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.mainAction, { marginTop: 15 }]} onPress={() => router.push('/measurements')}>
-          <View style={[styles.actionIcon, { backgroundColor: '#5856D6' }]}><Ionicons name="body" size={26} color="#fff" /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.actionTitle}>Gelişim Takibi</Text>
-            <Text style={styles.actionSub}>Ölçülerini güncelle</Text>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/measurements')}>
+          <View style={[styles.menuIcon, { backgroundColor: '#5856D6' }]}><Ionicons name="body" size={22} color="#fff" /></View>
+          <View style={styles.menuContent}>
+            <Text style={styles.menuTitle}>Vücut Ölçüleri</Text>
+            <Text style={styles.menuSub}>Gelişimini takip et</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#DDD" />
+          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.mainAction, { marginTop: 15 }]} onPress={() => router.push('/workout')}>
-          <View style={[styles.actionIcon, { backgroundColor: '#34C759' }]}><Ionicons name="barbell" size={26} color="#fff" /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.actionTitle}>Antrenmana Başla</Text>
-            <Text style={styles.actionSub}>Disiplinini seç ve basmaya başla!</Text>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/workout')}>
+          <View style={[styles.menuIcon, { backgroundColor: '#34C759' }]}><Ionicons name="barbell" size={22} color="#fff" /></View>
+          <View style={styles.menuContent}>
+            <Text style={styles.menuTitle}>Antrenman Paneli</Text>
+            <Text style={styles.menuSub}>Sınırlarını zorla</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#DDD" />
+          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.mainAction, { marginTop: 15 }]} onPress={() => router.push('/ai_coach')}>
-          <View style={[styles.actionIcon, { backgroundColor: '#FF9500' }]}><Ionicons name="sparkles" size={26} color="#fff" /></View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.actionTitle}>AI Fitness Coach</Text>
-            <Text style={styles.actionSub}>Yapay zekaya danış ve tavsiye al!</Text>
+        <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/ai_coach')}>
+          <View style={[styles.menuIcon, { backgroundColor: '#FF9500' }]}><Ionicons name="sparkles" size={22} color="#fff" /></View>
+          <View style={styles.menuContent}>
+            <Text style={styles.menuTitle}>Coach AI</Text>
+            <Text style={styles.menuSub}>Yapay zekadan taktik al</Text>
           </View>
-          <Ionicons name="chevron-forward" size={20} color="#DDD" />
+          <Ionicons name="chevron-forward" size={18} color="#C7C7CC" />
         </TouchableOpacity>
       </View>
 
-      <View style={{ height: 120 }} />
+      <View style={{ height: 100 }} />
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f2f2f7' },
-  header: { padding: 25, paddingTop: 60, backgroundColor: '#fff', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#eee' },
-  greet: { fontSize: 13, color: '#8e8e93', fontWeight: '600' },
-  userName: { fontSize: 22, fontWeight: 'bold', color: '#1c1c1e', textTransform: 'capitalize' },
-  logoutBtn: { padding: 5 },
-  statsRow: { flexDirection: 'row', justifyContent: 'space-between', padding: 15 },
-  statCard: { width: '31%', padding: 15, backgroundColor: '#fff', borderRadius: 20, alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
-  statNum: { fontSize: 18, fontWeight: 'bold', marginTop: 8 },
-  statLabel: { fontSize: 11, color: '#888', marginTop: 2 },
-  infoBox: { margin: 15, padding: 20, backgroundColor: '#1c1c1e', borderRadius: 20 },
-  infoText: { color: '#fff', textAlign: 'center', fontWeight: '500', lineHeight: 22 },
-  section: { padding: 15 },
-  mainAction: { backgroundColor: '#fff', padding: 15, borderRadius: 20, flexDirection: 'row', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
-  actionIcon: { width: 48, height: 48, backgroundColor: '#e10600', borderRadius: 14, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
-  actionTitle: { fontSize: 16, fontWeight: 'bold', color: '#1c1c1e' },
-  actionSub: { fontSize: 12, color: '#8e8e93', marginTop: 2 },
+  container: { flex: 1, backgroundColor: '#F8F9FB' },
+  loadingContainer: { flex: 1, backgroundColor: '#F8F9FB', justifyContent: 'center', alignItems: 'center' },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: Platform.OS === 'ios' ? 60 : 40,
+    paddingBottom: 20,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#FFF'
+  },
+  greetText: { fontSize: 11, color: '#e10600', fontWeight: '800', letterSpacing: 1.5 },
+  userNameText: { fontSize: 26, fontWeight: '900', color: '#1A1A1A', textTransform: 'capitalize', marginTop: 4 },
+  exitBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFF5F5', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#FFE0E0' },
+  statsContainer: { flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 16, marginTop: 15 },
+  statBox: {
+    width: '31%', paddingVertical: 18, backgroundColor: '#FFF',
+    borderRadius: 24, alignItems: 'center',
+    shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 10, elevation: 2
+  },
+  iconCircle: { width: 44, height: 44, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginBottom: 8 },
+  statValue: { fontSize: 19, fontWeight: '800', color: '#1A1A1A' },
+  statTitle: { fontSize: 10, color: '#999', fontWeight: '700', marginTop: 2, letterSpacing: 0.5 },
+  messageBanner: { margin: 16, padding: 18, backgroundColor: '#1A1A1A', borderRadius: 22 },
+  bannerText: { color: '#FFF', fontSize: 14, fontWeight: '600', textAlign: 'center', lineHeight: 21 },
+  menuSection: { paddingHorizontal: 16, gap: 10 },
+  menuItem: {
+    backgroundColor: '#FFF', padding: 14, borderRadius: 22,
+    flexDirection: 'row', alignItems: 'center',
+    shadowColor: '#000', shadowOpacity: 0.03, shadowRadius: 10, elevation: 1
+  },
+  menuIcon: { width: 46, height: 46, borderRadius: 15, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
+  menuContent: { flex: 1 },
+  menuTitle: { fontSize: 16, fontWeight: '800', color: '#1A1A1A' },
+  menuSub: { fontSize: 12, color: '#999', marginTop: 1 },
 });

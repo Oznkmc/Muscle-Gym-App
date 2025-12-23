@@ -145,59 +145,88 @@ export default function WorkoutScreen() {
     return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
-                <Text style={styles.mainTitle}>Antrenman Planla 💪</Text>
+                <Text style={styles.mainTitle}>Antrenman Planla</Text>
+                <Text style={styles.subtitle}>Hedeflerine ulaşmak için hadi başla!</Text>
             </View>
 
-            <View style={styles.statsContainer}>
-                <View style={styles.statsCard}>
-                    <View style={styles.statsInfo}>
-                        <Ionicons name="flash" size={28} color="#e10600" />
-                        <View style={{ marginLeft: 12 }}>
-                            <Text style={styles.statsLabel}>Bugünkü Toplam Hacim</Text>
-                            <Text style={styles.statsValue}>{totalVolume} <Text style={{ fontSize: 16 }}>kg</Text></Text>
-                        </View>
+            <View style={styles.statsRow}>
+                <View style={styles.statCard}>
+                    <View style={styles.statIconWrapper}>
+                        <Ionicons name="barbell" size={24} color="#e10600" />
                     </View>
+                    <Text style={styles.statValue}>{totalVolume}</Text>
+                    <Text style={styles.statLabel}>kg Toplam</Text>
                 </View>
 
-                <View style={styles.miniStatCard}>
-                    <Ionicons name="trophy" size={20} color="#FF9500" />
-                    <View style={{ marginLeft: 8 }}>
-                        <Text style={styles.miniStatLabel}>Bugün</Text>
-                        <Text style={styles.miniStatValue}>{todayWorkouts} Hareket</Text>
+                <View style={styles.statCard}>
+                    <View style={styles.statIconWrapper}>
+                        <Ionicons name="fitness" size={24} color="#FF9500" />
                     </View>
+                    <Text style={styles.statValue}>{todayWorkouts}</Text>
+                    <Text style={styles.statLabel}>Hareket</Text>
                 </View>
             </View>
 
-            <Text style={styles.sectionTitle}>Disiplin Seç</Text>
-            <View style={styles.cardContainer}>
+            <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Disiplin Seç</Text>
+                <View style={styles.dividerLine} />
+            </View>
+
+            <View style={styles.disciplineContainer}>
                 {['Bodybuilding', 'Powerlifting', 'Calisthenics'].map((type) => (
                     <TouchableOpacity
                         key={type}
-                        style={[styles.typeCard, discipline === type && styles.activeCard]}
+                        style={[styles.disciplineCard, discipline === type && styles.disciplineCardActive]}
                         onPress={() => { setDiscipline(type); setSelectedEx(null); }}
+                        activeOpacity={0.7}
                     >
-                        <Ionicons
-                            name={type === 'Bodybuilding' ? 'body' : type === 'Powerlifting' ? 'barbell' : 'fitness'}
-                            size={28}
-                            color={discipline === type ? '#fff' : '#e10600'}
-                        />
-                        <Text style={[styles.cardText, discipline === type && styles.activeText]}>{type}</Text>
+                        <View style={[styles.disciplineIconBox, discipline === type && styles.disciplineIconBoxActive]}>
+                            <Ionicons
+                                name={type === 'Bodybuilding' ? 'body' : type === 'Powerlifting' ? 'barbell' : 'fitness'}
+                                size={32}
+                                color={discipline === type ? '#fff' : '#e10600'}
+                            />
+                        </View>
+                        <Text style={[styles.disciplineText, discipline === type && styles.disciplineTextActive]}>
+                            {type}
+                        </Text>
                     </TouchableOpacity>
                 ))}
             </View>
 
             {discipline && (
-                <View style={styles.section}>
-                    <Text style={styles.subTitle}>{discipline} Hareketleri</Text>
-                    <View style={styles.exerciseGrid}>
+                <View style={styles.exerciseSection}>
+                    <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>Hareketler</Text>
+                        <View style={styles.dividerLine} />
+                    </View>
+
+                    <View style={styles.exerciseList}>
                         {workoutData[discipline].map((ex: any) => (
                             <TouchableOpacity
                                 key={ex.name}
-                                style={[styles.exChip, selectedEx === ex.name && styles.activeChip]}
+                                style={[styles.exerciseCard, selectedEx === ex.name && styles.exerciseCardActive]}
                                 onPress={() => setSelectedEx(ex.name)}
+                                activeOpacity={0.8}
                             >
-                                <Text style={[styles.exText, selectedEx === ex.name && styles.activeChipText]}>{ex.name}</Text>
-                                <Text style={[styles.targetText, selectedEx === ex.name && styles.activeTargetText]}>{ex.target}</Text>
+                                <View style={styles.exerciseContent}>
+                                    <Text style={[styles.exerciseName, selectedEx === ex.name && styles.exerciseNameActive]}>
+                                        {ex.name}
+                                    </Text>
+                                    <View style={styles.exerciseMeta}>
+                                        <View style={[styles.targetBadge, selectedEx === ex.name && styles.targetBadgeActive]}>
+                                            <Text style={[styles.targetText, selectedEx === ex.name && styles.targetTextActive]}>
+                                                {ex.target}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.diffBadge}>
+                                            <Text style={styles.diffText}>{ex.diff}</Text>
+                                        </View>
+                                    </View>
+                                </View>
+                                {selectedEx === ex.name && (
+                                    <Ionicons name="checkmark-circle" size={24} color="#fff" />
+                                )}
                             </TouchableOpacity>
                         ))}
                     </View>
@@ -205,76 +234,95 @@ export default function WorkoutScreen() {
             )}
 
             {selectedEx && (
-                <View style={styles.formCard}>
-                    <View style={styles.formHeaderRow}>
-                        <Text style={styles.formTitle}>📝 {selectedEx}</Text>
-                        <View style={styles.diffBadge}>
-                            <Text style={styles.diffText}>{workoutData[discipline!]?.find((e: any) => e.name === selectedEx)?.diff}</Text>
-                        </View>
+                <View style={styles.inputSection}>
+                    <View style={styles.inputHeader}>
+                        <Ionicons name="create" size={20} color="#e10600" />
+                        <Text style={styles.inputTitle}>{selectedEx}</Text>
                     </View>
 
-                    <View style={styles.inputRow}>
-                        <View style={styles.inputWrapper}>
+                    <View style={styles.inputGrid}>
+                        <View style={styles.inputBox}>
                             <Text style={styles.inputLabel}>Set</Text>
                             <TextInput
-                                style={styles.input}
+                                style={styles.inputField}
                                 keyboardType="numeric"
                                 value={sets}
                                 onChangeText={setSets}
                                 placeholder="3"
+                                placeholderTextColor="#999"
                             />
                         </View>
-                        <View style={styles.inputWrapper}>
+                        <View style={styles.inputBox}>
                             <Text style={styles.inputLabel}>Tekrar</Text>
                             <TextInput
-                                style={styles.input}
+                                style={styles.inputField}
                                 keyboardType="numeric"
                                 value={reps}
                                 onChangeText={setReps}
                                 placeholder="10"
+                                placeholderTextColor="#999"
+                            />
+                        </View>
+                        <View style={styles.inputBox}>
+                            <Text style={styles.inputLabel}>Ağırlık (kg)</Text>
+                            <TextInput
+                                style={styles.inputField}
+                                keyboardType="numeric"
+                                value={weight}
+                                onChangeText={setWeight}
+                                placeholder="0"
+                                placeholderTextColor="#999"
                             />
                         </View>
                     </View>
 
-                    <View style={styles.inputWrapper}>
-                        <Text style={styles.inputLabel}>Ağırlık (kg)</Text>
-                        <TextInput
-                            style={styles.input}
-                            keyboardType="numeric"
-                            value={weight}
-                            onChangeText={setWeight}
-                            placeholder="0"
-                        />
-                    </View>
-
-                    <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+                    <TouchableOpacity style={styles.saveButton} onPress={handleSave} activeOpacity={0.9}>
                         <Ionicons name="checkmark-circle" size={22} color="#fff" />
-                        <Text style={styles.saveBtnText}>Kaydet</Text>
+                        <Text style={styles.saveButtonText}>Antrenmanı Kaydet</Text>
                     </TouchableOpacity>
                 </View>
             )}
 
-            <Text style={styles.listTitle}>📋 Geçmiş</Text>
+            <View style={styles.sectionHeader}>
+                <Text style={styles.sectionTitle}>Geçmiş Antrenmanlar</Text>
+                <View style={styles.dividerLine} />
+            </View>
+
             {loading ? (
-                <ActivityIndicator color="#e10600" size="large" />
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator color="#e10600" size="large" />
+                </View>
+            ) : history.length === 0 ? (
+                <View style={styles.emptyState}>
+                    <Ionicons name="fitness-outline" size={64} color="#DDD" />
+                    <Text style={styles.emptyText}>Henüz antrenman kaydın yok</Text>
+                    <Text style={styles.emptySubtext}>İlk antrenmanını ekleyerek başla!</Text>
+                </View>
             ) : (
                 history.map((item) => (
-                    <View key={item.id} style={styles.historyItem}>
-                        <View style={styles.historyIcon}>
-                            <Ionicons name="checkmark-circle" size={24} color="#e10600" />
-                        </View>
-                        <View style={{ flex: 1, marginLeft: 12 }}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                <Text style={styles.itemEx}>{item.exercise}</Text>
-                                {item.target && <Text style={styles.targetTag}>{item.target}</Text>}
+                    <View key={item.id} style={styles.historyCard}>
+                        <View style={styles.historyLeft}>
+                            <View style={styles.historyIconBox}>
+                                <Ionicons name="barbell" size={20} color="#e10600" />
                             </View>
-                            <Text style={styles.itemDetails}>
-                                {item.sets} Set • {item.reps} Tekrar
-                                {item.weight !== "0" && ` • ${item.weight}kg`}
-                                {` • ${formatTime(item.createdAt)}`}
-                            </Text>
+                            <View style={styles.historyInfo}>
+                                <Text style={styles.historyExercise}>{item.exercise}</Text>
+                                <View style={styles.historyDetails}>
+                                    <Text style={styles.historyDetailText}>
+                                        {item.sets}×{item.reps}
+                                    </Text>
+                                    {item.weight !== "0" && (
+                                        <>
+                                            <View style={styles.dot} />
+                                            <Text style={styles.historyDetailText}>{item.weight}kg</Text>
+                                        </>
+                                    )}
+                                    <View style={styles.dot} />
+                                    <Text style={styles.historyDetailText}>{formatTime(item.createdAt)}</Text>
+                                </View>
+                            </View>
                         </View>
-                        <TouchableOpacity onPress={() => confirmDelete(item.id)}>
+                        <TouchableOpacity onPress={() => confirmDelete(item.id)} style={styles.deleteButton}>
                             <Ionicons name="trash-outline" size={20} color="#ff4444" />
                         </TouchableOpacity>
                     </View>
@@ -286,47 +334,304 @@ export default function WorkoutScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8F9FB', paddingHorizontal: 20 },
-    header: { marginTop: 50, marginBottom: 20 },
-    mainTitle: { fontSize: 24, fontWeight: '800' },
-    statsContainer: { marginBottom: 20 },
-    statsCard: { backgroundColor: '#fff', padding: 20, borderRadius: 20, elevation: 2 },
-    statsInfo: { flexDirection: 'row', alignItems: 'center' },
-    statsLabel: { color: '#888', fontSize: 12 },
-    statsValue: { fontSize: 24, fontWeight: '800' },
-    miniStatCard: { backgroundColor: '#FFF8E1', padding: 12, borderRadius: 15, flexDirection: 'row', marginTop: 10 },
-    miniStatLabel: { fontSize: 10, color: '#888' },
-    miniStatValue: { fontSize: 14, fontWeight: '700' },
-    sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 10 },
-    cardContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
-    typeCard: { width: (width - 60) / 3, backgroundColor: '#fff', padding: 15, borderRadius: 15, alignItems: 'center' },
-    activeCard: { backgroundColor: '#e10600' },
-    cardText: { fontSize: 10, fontWeight: '700', marginTop: 5 },
-    activeText: { color: '#fff' },
-    section: { marginBottom: 20 },
-    subTitle: { fontSize: 16, fontWeight: '700', marginBottom: 10 },
-    exerciseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-    exChip: { backgroundColor: '#fff', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#EEE' },
-    activeChip: { backgroundColor: '#333' },
-    exText: { fontSize: 12, fontWeight: '700' },
-    targetText: { fontSize: 9, color: '#e10600' },
-    activeChipText: { color: '#fff' },
-    activeTargetText: { color: '#FF9500' },
-    formCard: { backgroundColor: '#fff', padding: 20, borderRadius: 20, elevation: 3 },
-    formHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
-    formTitle: { fontSize: 18, fontWeight: '800', color: '#e10600' },
-    diffBadge: { backgroundColor: '#F5F5F5', padding: 4, borderRadius: 5 },
-    diffText: { fontSize: 9, fontWeight: '700' },
-    inputRow: { flexDirection: 'row', justifyContent: 'space-between' },
-    inputWrapper: { flex: 1, marginRight: 5, marginBottom: 10 },
-    inputLabel: { fontSize: 11, color: '#888', marginBottom: 5 },
-    input: { backgroundColor: '#F5F6F8', padding: 12, borderRadius: 10, fontSize: 14 },
-    saveBtn: { backgroundColor: '#e10600', padding: 15, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', marginTop: 10 },
-    saveBtnText: { color: '#fff', fontWeight: '800', marginLeft: 5 },
-    listTitle: { fontSize: 18, fontWeight: '700', marginBottom: 10 },
-    historyItem: { backgroundColor: '#fff', padding: 15, borderRadius: 15, marginBottom: 10, flexDirection: 'row', alignItems: 'center' },
-    historyIcon: { width: 40, height: 40, backgroundColor: '#FFF0F0', borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
-    itemEx: { fontSize: 15, fontWeight: '700' },
-    targetTag: { fontSize: 8, backgroundColor: '#F0F0F0', padding: 3, borderRadius: 4, marginLeft: 5 },
-    itemDetails: { fontSize: 11, color: '#888', marginTop: 3 }
+    container: {
+        flex: 1,
+        backgroundColor: '#FFFFFF',
+        paddingHorizontal: 24
+    },
+    header: {
+        marginTop: 60,
+        marginBottom: 30
+    },
+    mainTitle: {
+        fontSize: 32,
+        fontWeight: '900',
+        color: '#1A1A1A',
+        letterSpacing: -0.5
+    },
+    subtitle: {
+        fontSize: 15,
+        color: '#888',
+        marginTop: 6,
+        fontWeight: '500'
+    },
+    statsRow: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 32
+    },
+    statCard: {
+        flex: 1,
+        backgroundColor: '#F7F8FA',
+        borderRadius: 20,
+        padding: 20,
+        alignItems: 'center'
+    },
+    statIconWrapper: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#FFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12
+    },
+    statValue: {
+        fontSize: 28,
+        fontWeight: '900',
+        color: '#1A1A1A',
+        marginBottom: 4
+    },
+    statLabel: {
+        fontSize: 12,
+        color: '#888',
+        fontWeight: '600'
+    },
+    sectionHeader: {
+        marginBottom: 16
+    },
+    sectionTitle: {
+        fontSize: 20,
+        fontWeight: '800',
+        color: '#1A1A1A',
+        marginBottom: 8
+    },
+    dividerLine: {
+        height: 3,
+        width: 40,
+        backgroundColor: '#e10600',
+        borderRadius: 2
+    },
+    disciplineContainer: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 32
+    },
+    disciplineCard: {
+        flex: 1,
+        backgroundColor: '#F7F8FA',
+        borderRadius: 20,
+        padding: 16,
+        alignItems: 'center',
+        borderWidth: 2,
+        borderColor: 'transparent'
+    },
+    disciplineCardActive: {
+        backgroundColor: '#e10600',
+        borderColor: '#e10600'
+    },
+    disciplineIconBox: {
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        backgroundColor: '#FFF',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12
+    },
+    disciplineIconBoxActive: {
+        backgroundColor: 'rgba(255,255,255,0.2)'
+    },
+    disciplineText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#1A1A1A',
+        textAlign: 'center'
+    },
+    disciplineTextActive: {
+        color: '#FFF'
+    },
+    exerciseSection: {
+        marginBottom: 32
+    },
+    exerciseList: {
+        gap: 10
+    },
+    exerciseCard: {
+        backgroundColor: '#F7F8FA',
+        borderRadius: 16,
+        padding: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        borderWidth: 2,
+        borderColor: 'transparent'
+    },
+    exerciseCardActive: {
+        backgroundColor: '#e10600',
+        borderColor: '#e10600'
+    },
+    exerciseContent: {
+        flex: 1
+    },
+    exerciseName: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#1A1A1A',
+        marginBottom: 8
+    },
+    exerciseNameActive: {
+        color: '#FFF'
+    },
+    exerciseMeta: {
+        flexDirection: 'row',
+        gap: 8
+    },
+    targetBadge: {
+        backgroundColor: '#FFF',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8
+    },
+    targetBadgeActive: {
+        backgroundColor: 'rgba(255,255,255,0.2)'
+    },
+    targetText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#e10600'
+    },
+    targetTextActive: {
+        color: '#FFF'
+    },
+    diffBadge: {
+        backgroundColor: '#FFF',
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 8
+    },
+    diffText: {
+        fontSize: 11,
+        fontWeight: '700',
+        color: '#888'
+    },
+    inputSection: {
+        backgroundColor: '#F7F8FA',
+        borderRadius: 20,
+        padding: 20,
+        marginBottom: 32
+    },
+    inputHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        marginBottom: 20,
+        gap: 8
+    },
+    inputTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        color: '#1A1A1A'
+    },
+    inputGrid: {
+        flexDirection: 'row',
+        gap: 12,
+        marginBottom: 16
+    },
+    inputBox: {
+        flex: 1
+    },
+    inputLabel: {
+        fontSize: 12,
+        fontWeight: '700',
+        color: '#888',
+        marginBottom: 8
+    },
+    inputField: {
+        backgroundColor: '#FFF',
+        borderRadius: 12,
+        padding: 14,
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1A1A1A',
+        textAlign: 'center'
+    },
+    saveButton: {
+        backgroundColor: '#e10600',
+        borderRadius: 16,
+        padding: 16,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: 8,
+        shadowColor: '#e10600',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
+        elevation: 5
+    },
+    saveButtonText: {
+        color: '#FFF',
+        fontSize: 16,
+        fontWeight: '800'
+    },
+    loadingContainer: {
+        paddingVertical: 40,
+        alignItems: 'center'
+    },
+    emptyState: {
+        alignItems: 'center',
+        paddingVertical: 60
+    },
+    emptyText: {
+        fontSize: 16,
+        fontWeight: '700',
+        color: '#888',
+        marginTop: 16
+    },
+    emptySubtext: {
+        fontSize: 14,
+        color: '#AAA',
+        marginTop: 4
+    },
+    historyCard: {
+        backgroundColor: '#F7F8FA',
+        borderRadius: 16,
+        padding: 16,
+        marginBottom: 10,
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between'
+    },
+    historyLeft: {
+        flex: 1,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12
+    },
+    historyIconBox: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#FFF',
+        justifyContent: 'center',
+        alignItems: 'center'
+    },
+    historyInfo: {
+        flex: 1
+    },
+    historyExercise: {
+        fontSize: 15,
+        fontWeight: '700',
+        color: '#1A1A1A',
+        marginBottom: 4
+    },
+    historyDetails: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6
+    },
+    historyDetailText: {
+        fontSize: 12,
+        color: '#888',
+        fontWeight: '600'
+    },
+    dot: {
+        width: 3,
+        height: 3,
+        borderRadius: 1.5,
+        backgroundColor: '#CCC'
+    },
+    deleteButton: {
+        padding: 8
+    }
 });

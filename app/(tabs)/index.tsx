@@ -13,10 +13,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-// 1. DÜZELTME: SafeAreaView artık buradan gelmeli
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-
 import {
   signInWithEmailAndPassword,
   sendEmailVerification,
@@ -67,7 +65,7 @@ export default function LoginScreen() {
           ]
         );
 
-        await signOut(auth); // Burada çıkış yapıldığında diğer ekranlardaki dinleyiciler hata verebilir.
+        await signOut(auth);
         setLoading(false);
         return;
       }
@@ -134,30 +132,32 @@ export default function LoginScreen() {
 
           <View style={styles.form}>
             <View style={styles.inputWrapper}>
-              <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
+              <Ionicons name="mail" size={18} color="#e10600" style={styles.inputIcon} />
               <TextInput
                 autoCapitalize="none"
                 keyboardType="email-address"
                 style={styles.inputControl}
                 placeholder="E-posta adresiniz"
+                placeholderTextColor="#999"
                 value={form.email}
                 onChangeText={email => setForm({ ...form, email })}
               />
             </View>
 
             <View style={styles.inputWrapper}>
-              <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
+              <Ionicons name="lock-closed" size={18} color="#e10600" style={styles.inputIcon} />
               <TextInput
                 secureTextEntry={!isPasswordVisible}
                 style={styles.inputControl}
                 placeholder="Şifreniz"
+                placeholderTextColor="#999"
                 value={form.password}
                 onChangeText={password => setForm({ ...form, password })}
               />
-              <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)}>
+              <TouchableOpacity onPress={() => setIsPasswordVisible(!isPasswordVisible)} style={styles.eyeBtn}>
                 <Ionicons
-                  name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
-                  size={22}
+                  name={isPasswordVisible ? "eye-off" : "eye"}
+                  size={20}
                   color="#666"
                 />
               </TouchableOpacity>
@@ -167,12 +167,15 @@ export default function LoginScreen() {
               <Text style={styles.forgotPassText}>Şifremi Unuttum?</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={handleLogin} disabled={loading}>
+            <TouchableOpacity onPress={handleLogin} disabled={loading} activeOpacity={0.8}>
               <View style={[styles.btn, loading && { opacity: 0.8 }]}>
                 {loading ? (
                   <ActivityIndicator color="#fff" />
                 ) : (
-                  <Text style={styles.btnText}>Giriş Yap</Text>
+                  <View style={styles.btnContent}>
+                    <Text style={styles.btnText}>Giriş Yap</Text>
+                    <Ionicons name="arrow-forward" size={20} color="#fff" style={{ marginLeft: 8 }} />
+                  </View>
                 )}
               </View>
             </TouchableOpacity>
@@ -194,47 +197,55 @@ export default function LoginScreen() {
 }
 
 const styles = StyleSheet.create({
-  safeArea: { flex: 1, backgroundColor: '#F8F9FB' },
-  scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 20 },
-  header: { alignItems: 'center', marginTop: 40, marginBottom: 32 },
+  safeArea: { flex: 1, backgroundColor: '#FFFFFF' },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 28, paddingBottom: 24 },
+  header: { alignItems: 'center', marginTop: 50, marginBottom: 40 },
   logoContainer: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 90,
+    height: 90,
+    borderRadius: 28,
     overflow: 'hidden',
-    marginBottom: 16,
-    borderWidth: 2,
-    borderColor: '#e10600',
-    elevation: 5,
+    marginBottom: 20,
+    backgroundColor: '#fff',
+    shadowColor: '#e10600',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 15,
+    elevation: 8,
   },
   headerImg: { width: '100%', height: '100%' },
-  title: { fontSize: 32, fontWeight: '800', color: '#1A1A1A' },
-  subtitle: { fontSize: 16, color: '#666', marginTop: 4 },
-  form: { marginBottom: 10 },
+  title: { fontSize: 34, fontWeight: '900', color: '#1A1A1A', letterSpacing: -1 },
+  subtitle: { fontSize: 15, color: '#888', marginTop: 6, fontWeight: '500' },
+  form: { width: '100%' },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    paddingHorizontal: 16,
+    backgroundColor: '#F7F8FA',
+    borderRadius: 20,
+    paddingHorizontal: 18,
     marginBottom: 16,
-    height: 60,
-    borderWidth: 1,
-    borderColor: '#E1E6EF',
+    height: 64,
   },
-  inputIcon: { marginRight: 12 },
-  inputControl: { flex: 1, color: '#1A1A1A', fontSize: 16 },
-  forgotPass: { alignSelf: 'flex-end', marginBottom: 24 },
-  forgotPassText: { color: '#e10600', fontWeight: '600', fontSize: 14 },
+  inputIcon: { marginRight: 14 },
+  inputControl: { flex: 1, color: '#1A1A1A', fontSize: 15, fontWeight: '600' },
+  eyeBtn: { padding: 4 },
+  forgotPass: { alignSelf: 'flex-end', marginBottom: 28, marginRight: 4 },
+  forgotPassText: { color: '#e10600', fontWeight: '700', fontSize: 13 },
   btn: {
     backgroundColor: '#e10600',
-    borderRadius: 16,
-    height: 60,
+    borderRadius: 22,
+    height: 64,
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#e10600',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 6,
   },
-  btnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  footer: { marginTop: 20, marginBottom: 20 },
-  footerText: { textAlign: 'center', color: '#666', fontSize: 16 },
-  footerAction: { color: '#e10600', fontWeight: '700', textDecorationLine: 'underline' },
+  btnContent: { flexDirection: 'row', alignItems: 'center' },
+  btnText: { color: '#fff', fontSize: 17, fontWeight: '800' },
+  footer: { marginTop: 32, paddingBottom: 20 },
+  footerText: { textAlign: 'center', color: '#999', fontSize: 15, fontWeight: '500' },
+  footerAction: { color: '#1A1A1A', fontWeight: '800' },
 });

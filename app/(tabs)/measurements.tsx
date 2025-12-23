@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
     StyleSheet, View, Text, ScrollView, TextInput,
-    TouchableOpacity, Alert, ActivityIndicator, Dimensions
+    TouchableOpacity, Alert, ActivityIndicator, Dimensions, Platform
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { auth, db } from '../../lib/firebase';
@@ -16,7 +16,6 @@ export default function MeasurementsScreen() {
     const [loading, setLoading] = useState(true);
     const [history, setHistory] = useState<any[]>([]);
 
-    // Form State'leri
     const [weight, setWeight] = useState('');
     const [arm, setArm] = useState('');
     const [chest, setChest] = useState('');
@@ -49,80 +48,61 @@ export default function MeasurementsScreen() {
         return () => unsubscribe();
     }, [user?.uid]);
 
-    // İlerleme Hesaplama
     const getProgress = (field: string) => {
-        if (!currentStats || !previousStats) return { value: 0, icon: 'remove', color: '#888' };
-
+        if (!currentStats || !previousStats) return { value: 0, icon: 'remove', color: '#8E8E93' };
         const current = parseFloat(currentStats[field] || 0);
         const previous = parseFloat(previousStats[field] || 0);
         const diff = current - previous;
-
-        // Kilo için azalma iyi, diğerleri için artış iyi
-        const isGood = field === 'waist' || field === 'bodyFat'
-            ? diff < 0
-            : diff > 0;
+        const isGood = field === 'waist' || field === 'bodyFat' ? diff < 0 : diff > 0;
 
         return {
             value: Math.abs(diff).toFixed(1),
             icon: diff > 0 ? 'trending-up' : diff < 0 ? 'trending-down' : 'remove',
-            color: isGood ? '#34C759' : diff === 0 ? '#888' : '#FF3B30'
+            color: isGood ? '#34C759' : diff === 0 ? '#8E8E93' : '#FF3B30'
         };
     };
 
     const handleSave = async () => {
         if (!weight || !arm) {
-            Alert.alert("Hata", "Kilo ve Kol ölçüsünü girmelisin.");
+            Alert.alert("Eksik Bilgi", "Kilo ve Kol ölçüsü zorunludur.");
             return;
         }
-
         try {
             await addDoc(collection(db, "userMeasurements"), {
-                userId: user?.uid,
-                weight,
-                arm,
-                chest: chest || "-",
-                waist: waist || "-",
-                bodyFat: bodyFat || "-",
-                neck: neck || "-",
-                thigh: thigh || "-",
-                calf: calf || "-",
+                userId: user?.uid, weight, arm, chest: chest || "-", waist: waist || "-",
+                bodyFat: bodyFat || "-", neck: neck || "-", thigh: thigh || "-", calf: calf || "-",
                 createdAt: serverTimestamp()
             });
-
-            // Formu temizle
             setWeight(''); setArm(''); setChest(''); setWaist('');
             setBodyFat(''); setNeck(''); setThigh(''); setCalf('');
             setShowAdvanced(false);
-
-            Alert.alert("Başarılı! 🎉", "Ölçülerin kaydedildi. AI Coach'a danışarak gelişimini analiz edebilirsin!");
+            Alert.alert("Başarılı! 🎉", "Ölçülerin kaydedildi.");
         } catch (e) {
             Alert.alert("Hata", "Kaydedilemedi.");
         }
     };
 
     const confirmDelete = (id: string) => {
-        Alert.alert("Sil", "Bu ölçüm kaydını silmek istiyor musun?", [
+        Alert.alert("Kaydı Sil", "Bu ölçüm verisini silmek istediğine emin misin?", [
             { text: "Vazgeç", style: "cancel" },
             { text: "Sil", style: "destructive", onPress: () => deleteDoc(doc(db, "userMeasurements", id)) }
         ]);
     };
 
-    // BMI Hesaplama (örnek boy: 175cm)
     const calculateBMI = () => {
         if (!currentStats?.weight) return null;
-        const heightInMeters = 1.75; // Kullanıcıdan alınabilir
+        const heightInMeters = 1.75;
         const bmi = parseFloat(currentStats.weight) / (heightInMeters * heightInMeters);
         return bmi.toFixed(1);
     };
 
     const getBMIStatus = () => {
         const bmi = calculateBMI();
-        if (!bmi) return { text: '--', color: '#888' };
+        if (!bmi) return { text: '--', color: '#8E8E93' };
         const val = parseFloat(bmi);
-
         if (val < 18.5) return { text: 'Zayıf', color: '#FF9500' };
         if (val < 25) return { text: 'Normal', color: '#34C759' };
-        if (val < 30) return { text: 'Fazla Kilolu', color: '#FF9500' };
+        if (val < 30) return { text: 'Kilolu', color: '#FF9500' };
         return { text: 'Obez', color: '#FF3B30' };
     };
 
@@ -130,285 +110,124 @@ export default function MeasurementsScreen() {
 
     return (
         <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-            <Text style={styles.mainTitle}>Vücut Takibi 📏</Text>
-
-            {/* GÜNCEL DURUM KARTI */}
-            <View style={styles.currentCard}>
-                <View style={styles.cardHeader}>
-                    <Text style={styles.cardHeaderTitle}>Güncel Formun</Text>
-                    {currentStats && (
-                        <Text style={styles.lastUpdate}>
-                            {currentStats.createdAt?.toDate().toLocaleDateString('tr-TR')}
-                        </Text>
-                    )}
-                </View>
-
-                <View style={styles.statGrid}>
-                    <View style={styles.statBox}>
-                        <View style={styles.statTop}>
-                            <Text style={styles.statVal}>{currentStats?.weight || '--'}</Text>
-                            {previousStats && (
-                                <Ionicons
-                                    name={getProgress('weight').icon as any}
-                                    size={16}
-                                    color={getProgress('weight').color}
-                                />
-                            )}
-                        </View>
-                        <Text style={styles.statLab}>Kilo (kg)</Text>
-                        {previousStats && (
-                            <Text style={[styles.statChange, { color: getProgress('weight').color }]}>
-                                {getProgress('weight').icon !== 'remove' &&
-                                    (getProgress('weight').icon === 'trending-up' ? '+' : '-')
-                                }
-                                {getProgress('weight').value}kg
-                            </Text>
-                        )}
-                    </View>
-
-                    <View style={styles.statBox}>
-                        <View style={styles.statTop}>
-                            <Text style={styles.statVal}>{currentStats?.arm || '--'}</Text>
-                            {previousStats && (
-                                <Ionicons
-                                    name={getProgress('arm').icon as any}
-                                    size={16}
-                                    color={getProgress('arm').color}
-                                />
-                            )}
-                        </View>
-                        <Text style={styles.statLab}>Kol (cm)</Text>
-                        {previousStats && (
-                            <Text style={[styles.statChange, { color: getProgress('arm').color }]}>
-                                {getProgress('arm').icon !== 'remove' &&
-                                    (getProgress('arm').icon === 'trending-up' ? '+' : '-')
-                                }
-                                {getProgress('arm').value}cm
-                            </Text>
-                        )}
-                    </View>
-
-                    <View style={styles.statBox}>
-                        <View style={styles.statTop}>
-                            <Text style={styles.statVal}>{currentStats?.chest || '--'}</Text>
-                            {previousStats && (
-                                <Ionicons
-                                    name={getProgress('chest').icon as any}
-                                    size={16}
-                                    color={getProgress('chest').color}
-                                />
-                            )}
-                        </View>
-                        <Text style={styles.statLab}>Göğüs (cm)</Text>
-                        {previousStats && (
-                            <Text style={[styles.statChange, { color: getProgress('chest').color }]}>
-                                {getProgress('chest').icon !== 'remove' &&
-                                    (getProgress('chest').icon === 'trending-up' ? '+' : '-')
-                                }
-                                {getProgress('chest').value}cm
-                            </Text>
-                        )}
-                    </View>
-
-                    <View style={styles.statBox}>
-                        <View style={styles.statTop}>
-                            <Text style={styles.statVal}>{currentStats?.waist || '--'}</Text>
-                            {previousStats && (
-                                <Ionicons
-                                    name={getProgress('waist').icon as any}
-                                    size={16}
-                                    color={getProgress('waist').color}
-                                />
-                            )}
-                        </View>
-                        <Text style={styles.statLab}>Bel (cm)</Text>
-                        {previousStats && (
-                            <Text style={[styles.statChange, { color: getProgress('waist').color }]}>
-                                {getProgress('waist').icon !== 'remove' &&
-                                    (getProgress('waist').icon === 'trending-up' ? '+' : '-')
-                                }
-                                {getProgress('waist').value}cm
-                            </Text>
-                        )}
-                    </View>
-                </View>
-
-                {/* BMI Göstergesi */}
-                {currentStats && (
-                    <View style={styles.bmiContainer}>
-                        <View style={styles.bmiBox}>
-                            <Text style={styles.bmiLabel}>BMI (Örnek)</Text>
-                            <Text style={styles.bmiValue}>{calculateBMI() || '--'}</Text>
-                        </View>
-                        <View style={[styles.bmiStatus, { backgroundColor: bmiStatus.color + '20' }]}>
-                            <Text style={[styles.bmiStatusText, { color: bmiStatus.color }]}>
-                                {bmiStatus.text}
-                            </Text>
-                        </View>
-                    </View>
-                )}
+            <View style={styles.headerArea}>
+                <Text style={styles.headerTitle}>Gelişim Takibi</Text>
+                <Text style={styles.headerSub}>Fiziğindeki değişimi takip et</Text>
             </View>
 
-            {/* FORM KARTI */}
-            <View style={styles.formCard}>
-                <Text style={styles.cardTitle}>Yeni Ölçü Ekle</Text>
+            <View style={styles.summaryCard}>
+                <View style={styles.summaryHeader}>
+                    <View style={styles.badge}><Text style={styles.badgeText}>GÜNCEL DURUM</Text></View>
+                    <Text style={styles.dateText}>{currentStats?.createdAt?.toDate().toLocaleDateString('tr-TR') || '--'}</Text>
+                </View>
 
-                {/* Temel Ölçüler */}
-                <View style={styles.inputGrid}>
-                    <View style={styles.inputBox}>
-                        <Text style={styles.label}>Kilo (kg) *</Text>
-                        <TextInput
-                            style={styles.input}
-                            keyboardType="numeric"
-                            value={weight}
-                            onChangeText={setWeight}
-                            placeholder="75.5"
-                        />
+                <View style={styles.statsGrid}>
+                    {[
+                        { label: 'Kilo', field: 'weight', unit: 'kg' },
+                        { label: 'Kol', field: 'arm', unit: 'cm' },
+                        { label: 'Göğüs', field: 'chest', unit: 'cm' },
+                        { label: 'Bel', field: 'waist', unit: 'cm' }
+                    ].map((item, idx) => (
+                        <View key={idx} style={styles.statItem}>
+                            <Text style={styles.statLabel}>{item.label}</Text>
+                            <Text style={styles.statValue}>{currentStats?.[item.field] || '--'}<Text style={styles.unitText}>{item.unit}</Text></Text>
+                            {previousStats && (
+                                <View style={styles.changeRow}>
+                                    <Ionicons name={getProgress(item.field).icon as any} size={12} color={getProgress(item.field).color} />
+                                    <Text style={[styles.changeText, { color: getProgress(item.field).color }]}>
+                                        {getProgress(item.field).value}{item.unit}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                    ))}
+                </View>
+
+                <View style={styles.bmiSection}>
+                    <View style={styles.bmiInfo}>
+                        <Text style={styles.bmiTitle}>Vücut Kitle Endeksi (BMI)</Text>
+                        <Text style={styles.bmiNote}>Boy 1.75m üzerinden hesaplanır</Text>
                     </View>
-                    <View style={styles.inputBox}>
-                        <Text style={styles.label}>Kol (cm) *</Text>
-                        <TextInput
-                            style={styles.input}
-                            keyboardType="numeric"
-                            value={arm}
-                            onChangeText={setArm}
-                            placeholder="38"
-                        />
+                    <View style={[styles.bmiBadge, { backgroundColor: bmiStatus.color }]}>
+                        <Text style={styles.bmiVal}>{calculateBMI() || '--'}</Text>
+                        <Text style={styles.bmiStatusLabel}>{bmiStatus.text}</Text>
                     </View>
-                    <View style={styles.inputBox}>
-                        <Text style={styles.label}>Göğüs (cm)</Text>
-                        <TextInput
-                            style={styles.input}
-                            keyboardType="numeric"
-                            value={chest}
-                            onChangeText={setChest}
-                            placeholder="105"
-                        />
+                </View>
+            </View>
+
+            <View style={styles.inputCard}>
+                <Text style={styles.inputCardTitle}>Yeni Veri Girişi</Text>
+                <View style={styles.row}>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.fieldLabel}>Kilo (kg)</Text>
+                        <TextInput style={styles.input} keyboardType="numeric" value={weight} onChangeText={setWeight} placeholder="0.0" />
                     </View>
-                    <View style={styles.inputBox}>
-                        <Text style={styles.label}>Bel (cm)</Text>
-                        <TextInput
-                            style={styles.input}
-                            keyboardType="numeric"
-                            value={waist}
-                            onChangeText={setWaist}
-                            placeholder="85"
-                        />
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.fieldLabel}>Kol (cm)</Text>
+                        <TextInput style={styles.input} keyboardType="numeric" value={arm} onChangeText={setArm} placeholder="0.0" />
                     </View>
                 </View>
 
-                {/* Gelişmiş Ölçüler Toggle */}
-                <TouchableOpacity
-                    style={styles.advancedToggle}
-                    onPress={() => setShowAdvanced(!showAdvanced)}
-                >
-                    <Text style={styles.advancedToggleText}>
-                        {showAdvanced ? 'Daha Az Göster' : 'Daha Fazla Ölçü Ekle'}
-                    </Text>
-                    <Ionicons
-                        name={showAdvanced ? 'chevron-up' : 'chevron-down'}
-                        size={20}
-                        color="#e10600"
-                    />
-                </TouchableOpacity>
+                <View style={styles.row}>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.fieldLabel}>Göğüs (cm)</Text>
+                        <TextInput style={styles.input} keyboardType="numeric" value={chest} onChangeText={setChest} placeholder="0.0" />
+                    </View>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.fieldLabel}>Bel (cm)</Text>
+                        <TextInput style={styles.input} keyboardType="numeric" value={waist} onChangeText={setWaist} placeholder="0.0" />
+                    </View>
+                </View>
 
-                {/* Gelişmiş Ölçüler */}
                 {showAdvanced && (
-                    <View style={styles.inputGrid}>
-                        <View style={styles.inputBox}>
-                            <Text style={styles.label}>Boyun (cm)</Text>
-                            <TextInput
-                                style={styles.input}
-                                keyboardType="numeric"
-                                value={neck}
-                                onChangeText={setNeck}
-                                placeholder="37"
-                            />
+                    <View style={styles.row}>
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.fieldLabel}>Yağ %</Text>
+                            <TextInput style={styles.input} keyboardType="numeric" value={bodyFat} onChangeText={setBodyFat} placeholder="0.0" />
                         </View>
-                        <View style={styles.inputBox}>
-                            <Text style={styles.label}>Bacak (cm)</Text>
-                            <TextInput
-                                style={styles.input}
-                                keyboardType="numeric"
-                                value={thigh}
-                                onChangeText={setThigh}
-                                placeholder="60"
-                            />
-                        </View>
-                        <View style={styles.inputBox}>
-                            <Text style={styles.label}>Baldır (cm)</Text>
-                            <TextInput
-                                style={styles.input}
-                                keyboardType="numeric"
-                                value={calf}
-                                onChangeText={setCalf}
-                                placeholder="38"
-                            />
-                        </View>
-                        <View style={styles.inputBox}>
-                            <Text style={styles.label}>Yağ Oranı (%)</Text>
-                            <TextInput
-                                style={styles.input}
-                                keyboardType="numeric"
-                                value={bodyFat}
-                                onChangeText={setBodyFat}
-                                placeholder="15"
-                            />
+                        <View style={styles.inputGroup}>
+                            <Text style={styles.fieldLabel}>Boyun (cm)</Text>
+                            <TextInput style={styles.input} keyboardType="numeric" value={neck} onChangeText={setNeck} placeholder="0.0" />
                         </View>
                     </View>
                 )}
+
+                <TouchableOpacity style={styles.toggleBtn} onPress={() => setShowAdvanced(!showAdvanced)}>
+                    <Text style={styles.toggleBtnText}>{showAdvanced ? "Basit Görünüm" : "Detaylı Ölçüm Ekle"}</Text>
+                    <Ionicons name={showAdvanced ? "chevron-up" : "chevron-down"} size={16} color="#e10600" />
+                </TouchableOpacity>
 
                 <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
-                    <Ionicons name="checkmark-circle" size={20} color="#fff" style={{ marginRight: 8 }} />
-                    <Text style={styles.saveBtnText}>Ölçüleri Kaydet</Text>
+                    <Text style={styles.saveBtnText}>Kaydı Tamamla</Text>
+                    <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />
                 </TouchableOpacity>
             </View>
 
-            {/* GEÇMİŞ */}
-            <Text style={styles.listTitle}>Gelişim Geçmişi ({history.length})</Text>
+            <Text style={styles.historyTitle}>Geçmiş Kayıtlar</Text>
             {loading ? (
                 <ActivityIndicator color="#e10600" style={{ marginTop: 20 }} />
             ) : history.length === 0 ? (
-                <View style={styles.emptyState}>
-                    <Ionicons name="stats-chart-outline" size={60} color="#ddd" />
-                    <Text style={styles.emptyText}>Henüz ölçüm kaydın yok</Text>
-                    <Text style={styles.emptySubtext}>İlk ölçünü ekleyerek başla!</Text>
+                <View style={styles.emptyBox}>
+                    <Ionicons name="document-text-outline" size={40} color="#CCC" />
+                    <Text style={styles.emptyText}>Henüz kayıt bulunmuyor.</Text>
                 </View>
             ) : (
-                history.map((item, index) => (
-                    <View key={item.id} style={styles.historyCard}>
+                history.map((item, idx) => (
+                    <View key={item.id} style={styles.historyItem}>
                         <View style={styles.historyHeader}>
-                            <View style={styles.historyBadge}>
-                                <Text style={styles.historyBadgeText}>#{history.length - index}</Text>
+                            <View style={styles.historyDateRow}>
+                                <Ionicons name="calendar-clear-outline" size={14} color="#8E8E93" />
+                                <Text style={styles.historyDateText}>{item.createdAt?.toDate().toLocaleDateString('tr-TR')}</Text>
                             </View>
-                            <Ionicons name="calendar-outline" size={14} color="#888" />
-                            <Text style={styles.historyDate}>
-                                {item.createdAt?.toDate().toLocaleDateString('tr-TR')}
-                            </Text>
-                            <TouchableOpacity
-                                style={{ marginLeft: 'auto' }}
-                                onPress={() => confirmDelete(item.id)}
-                            >
-                                <Ionicons name="trash-outline" size={18} color="#ff4444" />
+                            <TouchableOpacity onPress={() => confirmDelete(item.id)}>
+                                <Ionicons name="trash-outline" size={18} color="#FF3B30" />
                             </TouchableOpacity>
                         </View>
-                        <View style={styles.statsRow}>
-                            <View style={styles.historyStatItem}>
-                                <Ionicons name="fitness-outline" size={16} color="#e10600" />
-                                <Text style={styles.statItemText}>{item.weight}kg</Text>
-                            </View>
-                            <View style={styles.historyStatItem}>
-                                <Ionicons name="body-outline" size={16} color="#34C759" />
-                                <Text style={styles.statItemText}>{item.arm}cm</Text>
-                            </View>
-                            <View style={styles.historyStatItem}>
-                                <Ionicons name="shirt-outline" size={16} color="#5856D6" />
-                                <Text style={styles.statItemText}>{item.chest}cm</Text>
-                            </View>
-                            <View style={styles.historyStatItem}>
-                                <Ionicons name="ellipse-outline" size={16} color="#FF9500" />
-                                <Text style={styles.statItemText}>{item.waist}cm</Text>
-                            </View>
+                        <View style={styles.historyDataRow}>
+                            <View style={styles.hStat}><Text style={styles.hLabel}>Kilo</Text><Text style={styles.hVal}>{item.weight}kg</Text></View>
+                            <View style={styles.hStat}><Text style={styles.hLabel}>Kol</Text><Text style={styles.hVal}>{item.arm}cm</Text></View>
+                            <View style={styles.hStat}><Text style={styles.hLabel}>Bel</Text><Text style={styles.hVal}>{item.waist}cm</Text></View>
+                            <View style={styles.hStat}><Text style={styles.hLabel}>Yağ</Text><Text style={styles.hVal}>%{item.bodyFat}</Text></View>
                         </View>
                     </View>
                 ))
@@ -419,231 +238,48 @@ export default function MeasurementsScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f8f9fb', paddingHorizontal: 20 },
-    mainTitle: { fontSize: 28, fontWeight: '800', marginTop: 60, marginBottom: 20, color: '#1a1a1a' },
-
-    currentCard: {
-        backgroundColor: '#e10600',
-        padding: 20,
-        borderRadius: 25,
-        marginBottom: 25,
-        elevation: 5,
-        shadowColor: '#e10600',
-        shadowOpacity: 0.3,
-        shadowRadius: 10
-    },
-    cardHeader: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20
-    },
-    cardHeaderTitle: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '700'
-    },
-    lastUpdate: {
-        color: 'rgba(255,255,255,0.7)',
-        fontSize: 12
-    },
-    statGrid: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        marginBottom: 15
-    },
-    statBox: {
-        width: '23%',
-        alignItems: 'center',
-        marginBottom: 10
-    },
-    statTop: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4
-    },
-    statVal: {
-        color: '#fff',
-        fontSize: 18,
-        fontWeight: '800'
-    },
-    statLab: {
-        color: 'rgba(255,255,255,0.7)',
-        fontSize: 10,
-        marginTop: 4,
-        fontWeight: '600'
-    },
-    statChange: {
-        fontSize: 9,
-        fontWeight: '600',
-        marginTop: 2
-    },
-    bmiContainer: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        backgroundColor: 'rgba(255,255,255,0.1)',
-        padding: 12,
-        borderRadius: 12,
-        marginTop: 10
-    },
-    bmiBox: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 10
-    },
-    bmiLabel: {
-        color: 'rgba(255,255,255,0.7)',
-        fontSize: 12,
-        fontWeight: '600'
-    },
-    bmiValue: {
-        color: '#fff',
-        fontSize: 20,
-        fontWeight: '800'
-    },
-    bmiStatus: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 12
-    },
-    bmiStatusText: {
-        fontSize: 12,
-        fontWeight: '700'
-    },
-
-    formCard: {
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        padding: 20,
-        elevation: 2,
-        marginBottom: 25
-    },
-    cardTitle: {
-        fontSize: 17,
-        fontWeight: '700',
-        marginBottom: 15,
-        color: '#1a1a1a'
-    },
-    inputGrid: {
-        flexDirection: 'row',
-        flexWrap: 'wrap',
-        justifyContent: 'space-between'
-    },
-    inputBox: {
-        width: '47%',
-        marginBottom: 15
-    },
-    label: {
-        fontSize: 12,
-        color: '#888',
-        marginBottom: 5,
-        fontWeight: '600'
-    },
-    input: {
-        backgroundColor: '#f5f6f8',
-        padding: 12,
-        borderRadius: 12,
-        fontSize: 15,
-        fontWeight: '600'
-    },
-    advancedToggle: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingVertical: 12,
-        paddingHorizontal: 15,
-        backgroundColor: '#f5f6f8',
-        borderRadius: 12,
-        marginVertical: 10
-    },
-    advancedToggleText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#e10600'
-    },
-    saveBtn: {
-        backgroundColor: '#1a1a1a',
-        padding: 15,
-        borderRadius: 15,
-        alignItems: 'center',
-        marginTop: 5,
-        flexDirection: 'row',
-        justifyContent: 'center'
-    },
-    saveBtnText: {
-        color: '#fff',
-        fontWeight: '700',
-        fontSize: 15
-    },
-
-    listTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        marginBottom: 15,
-        color: '#1a1a1a'
-    },
-    emptyState: {
-        alignItems: 'center',
-        padding: 40
-    },
-    emptyText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#888',
-        marginTop: 15
-    },
-    emptySubtext: {
-        fontSize: 13,
-        color: '#aaa',
-        marginTop: 5
-    },
-    historyCard: {
-        backgroundColor: '#fff',
-        padding: 15,
-        borderRadius: 18,
-        marginBottom: 12,
-        elevation: 1
-    },
-    historyHeader: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        marginBottom: 12,
-        borderBottomWidth: 1,
-        borderBottomColor: '#f0f0f0',
-        paddingBottom: 10
-    },
-    historyBadge: {
-        backgroundColor: '#e10600',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 8,
-        marginRight: 8
-    },
-    historyBadgeText: {
-        color: '#fff',
-        fontSize: 10,
-        fontWeight: '700'
-    },
-    historyDate: {
-        fontSize: 12,
-        color: '#888',
-        fontWeight: '600',
-        marginLeft: 5
-    },
-    statsRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between'
-    },
-    historyStatItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4
-    },
-    statItemText: {
-        fontSize: 13,
-        fontWeight: '700',
-        color: '#444'
-    }
+    container: { flex: 1, backgroundColor: '#F8F9FB', paddingHorizontal: 20 },
+    headerArea: { marginTop: 60, marginBottom: 25 },
+    headerTitle: { fontSize: 32, fontWeight: '900', color: '#1A1A1A', letterSpacing: -1 },
+    headerSub: { fontSize: 15, color: '#8E8E93', fontWeight: '500', marginTop: 4 },
+    summaryCard: { backgroundColor: '#FFF', borderRadius: 28, padding: 24, shadowColor: '#000', shadowOpacity: 0.06, shadowRadius: 15, elevation: 3 },
+    summaryHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+    badge: { backgroundColor: '#F2F2F7', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
+    badgeText: { fontSize: 10, fontWeight: '800', color: '#e10600' },
+    dateText: { fontSize: 12, color: '#8E8E93', fontWeight: '600' },
+    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
+    statItem: { width: '48%', marginBottom: 16 },
+    statLabel: { fontSize: 12, color: '#8E8E93', fontWeight: '600', marginBottom: 2 },
+    statValue: { fontSize: 22, fontWeight: '800', color: '#1A1A1A' },
+    unitText: { fontSize: 12, fontWeight: '600', color: '#8E8E93', marginLeft: 2 },
+    changeRow: { flexDirection: 'row', alignItems: 'center', marginTop: 2 },
+    changeText: { fontSize: 11, fontWeight: '700', marginLeft: 4 },
+    bmiSection: { marginTop: 10, paddingTop: 20, borderTopWidth: 1, borderTopColor: '#F2F2F7', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+    bmiInfo: { flex: 1 },
+    bmiTitle: { fontSize: 14, fontWeight: '700', color: '#1A1A1A' },
+    bmiNote: { fontSize: 10, color: '#8E8E93', marginTop: 2 },
+    bmiBadge: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: 12, alignItems: 'center', minWidth: 60 },
+    bmiVal: { fontSize: 18, fontWeight: '900', color: '#FFF' },
+    bmiStatusLabel: { fontSize: 9, fontWeight: '800', color: '#FFF' },
+    inputCard: { backgroundColor: '#FFF', borderRadius: 28, padding: 24, marginTop: 20, shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 10, elevation: 2 },
+    inputCardTitle: { fontSize: 18, fontWeight: '800', color: '#1A1A1A', marginBottom: 20 },
+    row: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
+    inputGroup: { width: '47%' },
+    fieldLabel: { fontSize: 12, fontWeight: '700', color: '#8E8E93', marginBottom: 8, marginLeft: 4 },
+    input: { backgroundColor: '#F2F2F7', height: 56, borderRadius: 16, paddingHorizontal: 16, fontSize: 16, fontWeight: '600', color: '#1A1A1A' },
+    toggleBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 10 },
+    toggleBtnText: { fontSize: 13, fontWeight: '700', color: '#e10600', marginRight: 5 },
+    saveBtn: { backgroundColor: '#e10600', height: 60, borderRadius: 20, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 10 },
+    saveBtnText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+    historyTitle: { fontSize: 20, fontWeight: '800', color: '#1A1A1A', marginTop: 30, marginBottom: 15 },
+    historyItem: { backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 12, borderLeftWidth: 4, borderLeftColor: '#e10600' },
+    historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 },
+    historyDateRow: { flexDirection: 'row', alignItems: 'center' },
+    historyDateText: { fontSize: 13, fontWeight: '700', color: '#1A1A1A', marginLeft: 6 },
+    historyDataRow: { flexDirection: 'row', justifyContent: 'space-between' },
+    hStat: { alignItems: 'flex-start' },
+    hLabel: { fontSize: 10, color: '#8E8E93', fontWeight: '600' },
+    hVal: { fontSize: 14, fontWeight: '800', color: '#1A1A1A', marginTop: 2 },
+    emptyBox: { alignItems: 'center', paddingVertical: 40 },
+    emptyText: { color: '#8E8E93', fontWeight: '600', marginTop: 10 }
 });
