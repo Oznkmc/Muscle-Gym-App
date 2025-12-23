@@ -3,10 +3,11 @@ import { StyleSheet, View, Text, TextInput, ScrollView, TouchableOpacity, Keyboa
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { auth, db } from '../../lib/firebase';
-import { collection, query, where, onSnapshot, addDoc, orderBy, limit, Timestamp } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, orderBy, limit } from 'firebase/firestore';
 
 const GROQ_API_KEY = process.env.EXPO_PUBLIC_GROQ_API_KEY;
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+
 
 interface Message {
     role: 'user' | 'assistant' | 'system';
@@ -90,7 +91,7 @@ export default function AICoachScreen() {
         startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
         startOfWeek.setHours(0, 0, 0, 0);
 
-        // --- DIET LISTENER ---
+
         const qDiet = query(
             collection(db, "userDiets"),
             where("userId", "==", user.uid),
@@ -104,33 +105,32 @@ export default function AICoachScreen() {
 
             snapshot.forEach((doc) => {
                 const data = doc.data();
-                // HATA ÇÖZÜMÜ: createdAt null gelirse anlık zamanı kullan
-                const createdAtDate = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
+                const createdAt = data.createdAt?.toDate();
 
-                if (createdAtDate >= startOfToday) {
+                if (createdAt >= startOfToday) {
                     p += parseFloat(data.protein || 0);
                     k += parseFloat(data.kcal || 0);
                     f += parseFloat(data.fat || 0);
                     c += parseFloat(data.carb || 0);
 
                     todayItems.push({
-                        title: data.title || '',
-                        quantity: data.quantity || '',
-                        protein: String(data.protein || 0),
-                        kcal: String(data.kcal || 0),
-                        fat: String(data.fat || 0),
-                        carb: String(data.carb || 0),
-                        time: createdAtDate.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+                        title: data.title,
+                        quantity: data.quantity,
+                        protein: data.protein,
+                        kcal: data.kcal,
+                        fat: data.fat,
+                        carb: data.carb,
+                        time: createdAt.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
                     });
                 }
 
-                if (createdAtDate >= startOfWeek) {
+                if (createdAt >= startOfWeek) {
                     weekItems.push({
-                        title: data.title || '',
-                        quantity: data.quantity || '',
-                        protein: String(data.protein || 0),
-                        kcal: String(data.kcal || 0),
-                        time: createdAtDate.toLocaleDateString('tr-TR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
+                        title: data.title,
+                        quantity: data.quantity,
+                        protein: data.protein,
+                        kcal: data.kcal,
+                        time: createdAt.toLocaleDateString('tr-TR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
                     });
                 }
             });
@@ -140,7 +140,7 @@ export default function AICoachScreen() {
             setWeeklyMeals(weekItems);
         });
 
-        // --- WORKOUT LISTENER ---
+
         const qWorkouts = query(
             collection(db, "userWorkouts"),
             where("userId", "==", user.uid),
@@ -155,25 +155,23 @@ export default function AICoachScreen() {
 
             snapshot.forEach((doc) => {
                 const data = doc.data();
-                const createdAtDate = data.createdAt instanceof Timestamp ? data.createdAt.toDate() : new Date();
+                const createdAt = data.createdAt?.toDate();
 
-                if (createdAtDate >= startOfToday) todayCount++;
-                if (createdAtDate >= startOfWeek) weekCount++;
+                if (createdAt >= startOfToday) todayCount++;
+                if (createdAt >= startOfWeek) weekCount++;
 
                 workoutItems.push({
-                    discipline: data.discipline || '',
-                    exercise: data.exercise || '',
-                    sets: String(data.sets || 0),
-                    weight: String(data.weight || 0),
-                    time: createdAtDate.toLocaleDateString('tr-TR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
+                    discipline: data.discipline,
+                    exercise: data.exercise,
+                    sets: data.sets,
+                    weight: data.weight,
+                    time: createdAt.toLocaleDateString('tr-TR', { weekday: 'short', hour: '2-digit', minute: '2-digit' })
                 });
             });
 
             setUserStats(prev => ({ ...prev, workoutCount: todayCount, weeklyWorkoutCount: weekCount }));
             setRecentWorkouts(workoutItems);
         });
-
-        // --- MEASUREMENTS LISTENER ---
         const qMeasurements = query(
             collection(db, "userMeasurements"),
             where("userId", "==", user.uid),
@@ -186,29 +184,28 @@ export default function AICoachScreen() {
 
             if (measurements.length > 0) {
                 const latest = measurements[0];
-                const latestDate = latest.createdAt instanceof Timestamp ? latest.createdAt.toDate().toLocaleDateString('tr-TR') : 'Yeni';
                 setLatestMeasurement({
-                    weight: String(latest.weight),
-                    arm: latest.arm ? String(latest.arm) : undefined,
-                    chest: latest.chest ? String(latest.chest) : undefined,
-                    waist: latest.waist ? String(latest.waist) : undefined,
-                    bodyFat: latest.bodyFat ? String(latest.bodyFat) : undefined,
-                    neck: latest.neck ? String(latest.neck) : undefined,
-                    thigh: latest.thigh ? String(latest.thigh) : undefined,
-                    calf: latest.calf ? String(latest.calf) : undefined,
-                    date: latestDate
+                    weight: latest.weight,
+                    arm: latest.arm,
+                    chest: latest.chest,
+                    waist: latest.waist,
+                    bodyFat: latest.bodyFat,
+                    neck: latest.neck,
+                    thigh: latest.thigh,
+                    calf: latest.calf,
+                    date: latest.createdAt?.toDate().toLocaleDateString('tr-TR') || 'Bilinmiyor'
                 });
             }
 
             if (measurements.length > 1) {
                 const previous = measurements[1];
                 setPreviousMeasurement({
-                    weight: String(previous.weight),
-                    arm: previous.arm ? String(previous.arm) : undefined,
-                    chest: previous.chest ? String(previous.chest) : undefined,
-                    waist: previous.waist ? String(previous.waist) : undefined,
-                    bodyFat: previous.bodyFat ? String(previous.bodyFat) : undefined,
-                    date: previous.createdAt instanceof Timestamp ? previous.createdAt.toDate().toLocaleDateString('tr-TR') : ''
+                    weight: previous.weight,
+                    arm: previous.arm,
+                    chest: previous.chest,
+                    waist: previous.waist,
+                    bodyFat: previous.bodyFat,
+                    date: previous.createdAt?.toDate().toLocaleDateString('tr-TR') || 'Bilinmiyor'
                 });
             }
 
@@ -227,15 +224,15 @@ export default function AICoachScreen() {
         try {
             await addDoc(collection(db, "chatHistory"), {
                 userId: user.uid,
-                messages: messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
-                timestamp: Timestamp.now()
+                messages: messages.slice(-10),
+                timestamp: new Date()
             });
         } catch (error) {
             console.log("Chat kaydetme hatası:", error);
         }
     };
 
-    // --- BURASI YAPAY ZEKA EĞİTİM KISMI (DOKUNULMADI) ---
+
     const getSystemPrompt = () => {
         const progressPercent = ((userStats.weeklyWorkoutCount / userStats.weeklyGoal) * 100).toFixed(0);
 
@@ -246,6 +243,7 @@ export default function AICoachScreen() {
         const workoutSummary = recentWorkouts.length > 0
             ? recentWorkouts.slice(0, 5).map(w => `- ${w.exercise} (${w.sets} set, ${w.weight}kg) [${w.discipline}] - ${w.time}`).join('\n')
             : "Henüz antrenman yapmadı.";
+
 
         let measurementInfo = "";
         if (latestMeasurement) {
@@ -258,6 +256,7 @@ export default function AICoachScreen() {
 - Bacak: ${latestMeasurement.thigh || '-'} cm
 - Baldır: ${latestMeasurement.calf || '-'} cm
 - Yağ Oranı: ${latestMeasurement.bodyFat || '-'}%`;
+
 
             if (previousMeasurement) {
                 const weightDiffNum = parseFloat(latestMeasurement.weight) - parseFloat(previousMeasurement.weight);
@@ -330,8 +329,12 @@ ${workoutSummary}
     const handleChat = async () => {
         if (!input.trim() || isTyping) return;
 
-        const currentInput = input;
-        const userMsg: Message = { role: "user", content: currentInput, timestamp: new Date() };
+        const userMsg: Message = {
+            role: "user",
+            content: input,
+            timestamp: new Date()
+        };
+
         setChatHistory(prev => [...prev, userMsg]);
         setInput('');
         setIsTyping(true);
@@ -339,8 +342,11 @@ ${workoutSummary}
         try {
             const messages: Message[] = [
                 { role: "system", content: getSystemPrompt() },
-                ...chatHistory.slice(-8).map(msg => ({ role: msg.role, content: msg.content })),
-                { role: "user", content: currentInput }
+                ...chatHistory.slice(-8).map(msg => ({
+                    role: msg.role,
+                    content: msg.content
+                })),
+                { role: "user", content: input }
             ];
 
             const response = await fetch(GROQ_API_URL, {
@@ -354,27 +360,42 @@ ${workoutSummary}
                     messages: messages,
                     temperature: 0.8,
                     max_tokens: 600,
+                    top_p: 0.95,
+                    stream: false
                 })
             });
+
+            if (!response.ok) {
+                throw new Error(`API Error: ${response.status}`);
+            }
 
             const data = await response.json();
             const aiResponse = data.choices[0].message.content;
 
-            const assistantMsg: Message = { role: "assistant", content: aiResponse, timestamp: new Date() };
-            setChatHistory(prev => [...prev, assistantMsg]);
-            saveChatHistory([...chatHistory, userMsg, assistantMsg]);
+            const assistantMsg: Message = {
+                role: "assistant",
+                content: aiResponse,
+                timestamp: new Date()
+            };
 
-        } catch (error) {
-            console.log("AI Bağlantı Hatası:", error);
-            const errorMsg: Message = { role: "assistant", content: "Üzgünüm, şu an bağlantı kuramıyorum. Lütfen tekrar dene! 🔄" };
+            setChatHistory(prev => [...prev, assistantMsg]);
+            await saveChatHistory([...chatHistory, userMsg, assistantMsg]);
+
+        } catch (error: any) {
+            console.log("AI Bağlantı Hatası:", error.message);
+            const errorMsg: Message = {
+                role: "assistant",
+                content: "Üzgünüm, şu an bağlantı kuramıyorum. Lütfen tekrar dene! 🔄",
+                timestamp: new Date()
+            };
             setChatHistory(prev => [...prev, errorMsg]);
+            Alert.alert("Bağlantı Hatası", "Yapay zeka servisine ulaşılamadı. İnternet bağlantını kontrol et.");
         } finally {
             setIsTyping(false);
             setTimeout(() => scrollViewRef.current?.scrollToEnd({ animated: true }), 100);
         }
     };
 
-    // Tasarım ve etkileşim kısımları (Aynı şekilde korundu)
     const quickQuestions = [
         latestMeasurement && previousMeasurement ? "Gelişimimi analiz eder misin?" : "Ölçülerimi nasıl kaydederim?",
         userStats.protein < 50 ? "Proteinimi nasıl artırırım?" : "Protein alımım yeterli mi?",
@@ -382,17 +403,26 @@ ${workoutSummary}
         "Motivasyona ihtiyacım var"
     ];
 
+    const handleQuickQuestion = (question: string) => {
+        setInput(question);
+    };
+
     if (dataLoading) {
         return (
             <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
                 <ActivityIndicator size="large" color="#e10600" />
+                <Text style={{ marginTop: 10, color: '#888' }}>Verileriniz yükleniyor...</Text>
             </View>
         );
     }
 
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
-            <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+                style={{ flex: 1 }}
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+            >
                 <View style={styles.header}>
                     <Ionicons name="fitness" size={24} color="#e10600" />
                     <Text style={styles.headerTitle}>AI Fitness Coach</Text>
@@ -402,26 +432,79 @@ ${workoutSummary}
                     </View>
                 </View>
 
-                {/* Stat Kartları */}
-                <View style={{ height: 100 }}>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.statsCard}>
-                        <StatBox icon="flame" color="#FF9500" val={userStats.kcal.toFixed(0)} label="Kalori" />
-                        <StatBox icon="egg" color="#e10600" val={userStats.protein.toFixed(0) + 'g'} label="Protein" />
-                        <StatBox icon="barbell" color="#34C759" val={`${userStats.weeklyWorkoutCount}/${userStats.weeklyGoal}`} label="Haftalık" />
-                        <StatBox icon="body" color="#5856D6" val={(latestMeasurement?.weight || '--') + 'kg'} label="Kilo" />
-                    </ScrollView>
-                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statsScrollContainer}>
+                    <View style={styles.statsCard}>
+                        <View style={styles.statItem}>
+                            <Ionicons name="flame" size={20} color="#FF9500" />
+                            <Text style={styles.statValue}>{userStats.kcal.toFixed(0)}</Text>
+                            <Text style={styles.statLabel}>Kalori</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <Ionicons name="egg" size={20} color="#e10600" />
+                            <Text style={styles.statValue}>{userStats.protein.toFixed(0)}g</Text>
+                            <Text style={styles.statLabel}>Protein</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <Ionicons name="barbell" size={20} color="#34C759" />
+                            <Text style={styles.statValue}>{userStats.weeklyWorkoutCount}/{userStats.weeklyGoal}</Text>
+                            <Text style={styles.statLabel}>Antrenman</Text>
+                        </View>
+                        <View style={styles.statDivider} />
+                        <View style={styles.statItem}>
+                            <Ionicons name="body" size={20} color="#5856D6" />
+                            <Text style={styles.statValue}>{latestMeasurement?.weight || '--'}kg</Text>
+                            <Text style={styles.statLabel}>Kilo</Text>
+                        </View>
+                    </View>
+                </ScrollView>
 
-                <ScrollView ref={scrollViewRef} contentContainerStyle={styles.chatArea}>
+                <ScrollView
+                    ref={scrollViewRef}
+                    contentContainerStyle={styles.chatArea}
+                    showsVerticalScrollIndicator={false}
+                >
                     {chatHistory.length === 0 ? (
                         <View style={styles.welcomeBox}>
                             <Text style={styles.welcomeEmoji}>💪</Text>
                             <Text style={styles.welcomeText}>Merhaba {userDisplayName}!</Text>
-                            <Text style={styles.welcomeSub}>Verilerini analiz ettim. Hedeflerine ulaşman için buradayım!</Text>
+                            <Text style={styles.welcomeSub}>
+                                Tüm beslenme, antrenman ve vücut ölçüm verilerini analiz ediyorum. Hedeflerine ulaşman için buradayım!
+                            </Text>
+
+
+                            <View style={styles.summaryCard}>
+                                {latestMeasurement && (
+                                    <View style={styles.summaryRow}>
+                                        <Ionicons name="body" size={20} color="#5856D6" />
+                                        <Text style={styles.summaryText}>
+                                            Son ölçüm: {latestMeasurement.weight}kg{latestMeasurement.arm ? `, Kol: ${latestMeasurement.arm}cm` : ''} 📏
+                                        </Text>
+                                    </View>
+                                )}
+                                <View style={styles.summaryRow}>
+                                    <Ionicons name={userStats.protein >= 80 ? "checkmark-circle" : "alert-circle"} size={20} color={userStats.protein >= 80 ? "#34C759" : "#FF9500"} />
+                                    <Text style={styles.summaryText}>
+                                        {userStats.protein >= 80 ? "Protein hedefine ulaştın! 🎯" : "Protein alımını artırmalısın 💪"}
+                                    </Text>
+                                </View>
+                                <View style={styles.summaryRow}>
+                                    <Ionicons name={userStats.workoutCount > 0 ? "checkmark-circle" : "time"} size={20} color={userStats.workoutCount > 0 ? "#34C759" : "#888"} />
+                                    <Text style={styles.summaryText}>
+                                        {userStats.workoutCount > 0 ? "Bugün antrenman yaptın! 🔥" : "Bugün henüz antrenman yapmadın ⏳"}
+                                    </Text>
+                                </View>
+                            </View>
 
                             <View style={styles.quickQuestions}>
-                                {quickQuestions.map((q, i) => (
-                                    <TouchableOpacity key={i} style={styles.quickBtn} onPress={() => setInput(q)}>
+                                <Text style={styles.quickTitle}>Hızlı Sorular:</Text>
+                                {quickQuestions.map((q, idx) => (
+                                    <TouchableOpacity
+                                        key={idx}
+                                        style={styles.quickBtn}
+                                        onPress={() => handleQuickQuestion(q)}
+                                    >
                                         <Text style={styles.quickBtnText}>{q}</Text>
                                         <Ionicons name="arrow-forward" size={14} color="#e10600" />
                                     </TouchableOpacity>
@@ -429,11 +512,23 @@ ${workoutSummary}
                             </View>
                         </View>
                     ) : (
-                        chatHistory.map((msg, idx) => (
-                            <View key={idx} style={[styles.msgWrapper, msg.role === 'user' ? styles.userWrapper : styles.assistantWrapper]}>
-                                {msg.role === 'assistant' && <View style={styles.coachAvatar}><Ionicons name="fitness" size={14} color="#fff" /></View>}
-                                <View style={[styles.msgBubble, msg.role === 'user' ? styles.userBubble : styles.assistantBubble]}>
-                                    <Text style={msg.role === 'user' ? styles.userText : styles.assistantText}>{msg.content}</Text>
+                        chatHistory.map((msg, index) => (
+                            <View key={index} style={[
+                                styles.msgWrapper,
+                                msg.role === 'user' ? styles.userWrapper : styles.assistantWrapper
+                            ]}>
+                                {msg.role === 'assistant' && (
+                                    <View style={styles.coachAvatar}>
+                                        <Ionicons name="fitness" size={16} color="#fff" />
+                                    </View>
+                                )}
+                                <View style={[
+                                    styles.msgBubble,
+                                    msg.role === 'user' ? styles.userBubble : styles.assistantBubble
+                                ]}>
+                                    <Text style={msg.role === 'user' ? styles.userText : styles.assistantText}>
+                                        {msg.content}
+                                    </Text>
                                 </View>
                             </View>
                         ))
@@ -446,15 +541,23 @@ ${workoutSummary}
                     )}
                 </ScrollView>
 
+
                 <View style={styles.inputContainer}>
                     <TextInput
                         style={styles.textInput}
                         placeholder="Sorunu yaz..."
                         value={input}
                         onChangeText={setInput}
+                        onSubmitEditing={handleChat}
+                        placeholderTextColor="#999"
                         multiline
+                        maxLength={500}
                     />
-                    <TouchableOpacity onPress={handleChat} style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled]} disabled={!input.trim() || isTyping}>
+                    <TouchableOpacity
+                        onPress={handleChat}
+                        style={[styles.sendBtn, (!input.trim() || isTyping) && styles.sendBtnDisabled]}
+                        disabled={!input.trim() || isTyping}
+                    >
                         <Ionicons name="send" size={20} color="#fff" />
                     </TouchableOpacity>
                 </View>
@@ -463,46 +566,44 @@ ${workoutSummary}
     );
 }
 
-const StatBox = ({ icon, color, val, label }: any) => (
-    <View style={styles.statItem}>
-        <Ionicons name={icon} size={20} color={color} />
-        <Text style={styles.statValue}>{val}</Text>
-        <Text style={styles.statLabel}>{label}</Text>
-    </View>
-);
-
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#f8f9fa' },
-    header: { flexDirection: 'row', alignItems: 'center', padding: 16, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee' },
-    headerTitle: { fontSize: 18, fontWeight: '700', marginLeft: 10, flex: 1 },
-    statusBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0f0f0', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12 },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 17, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee' },
+    headerTitle: { fontSize: 18, fontWeight: '700', color: '#333', marginLeft: 10, flex: 1 },
+    statusBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f0f0f0', paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12 },
     statusDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#34C759', marginRight: 6 },
     statusText: { fontSize: 11, fontWeight: '600', color: '#666' },
-    statsCard: { flexDirection: 'row', padding: 16, gap: 15 },
+    statsScrollContainer: { maxHeight: 100, backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#eee' },
+    statsCard: { flexDirection: 'row', padding: 17, gap: 12 },
     statItem: { alignItems: 'center', minWidth: 70 },
     statValue: { fontSize: 16, fontWeight: '700', color: '#333', marginTop: 6 },
-    statLabel: { fontSize: 11, color: '#888' },
-    chatArea: { padding: 16, paddingBottom: 100 },
-    welcomeBox: { alignItems: 'center', paddingVertical: 20 },
+    statLabel: { fontSize: 11, color: '#888', marginTop: 2 },
+    statDivider: { width: 1, backgroundColor: '#eee' },
+    chatArea: { padding: 17, paddingBottom: 100 },
+    welcomeBox: { alignItems: 'center', paddingVertical: 32 },
     welcomeEmoji: { fontSize: 64 },
-    welcomeText: { fontSize: 24, fontWeight: '700', marginTop: 16 },
-    welcomeSub: { fontSize: 14, color: '#666', textAlign: 'center', marginTop: 8, paddingHorizontal: 20 },
-    quickQuestions: { marginTop: 24, width: '100%' },
-    quickBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#fff', padding: 14, borderRadius: 12, marginBottom: 8, borderWidth: 1, borderColor: '#eee' },
-    quickBtnText: { fontSize: 13, fontWeight: '500' },
-    msgWrapper: { flexDirection: 'row', marginBottom: 12, maxWidth: '85%' },
+    welcomeText: { fontSize: 24, fontWeight: '700', color: '#333', marginTop: 17 },
+    welcomeSub: { fontSize: 14, color: '#666', textAlign: 'center', marginTop: 9, paddingHorizontal: 20 },
+    summaryCard: { marginTop: 25, backgroundColor: '#fff', borderRadius: 17, padding: 17, width: '100%', shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+    summaryRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 9 },
+    summaryText: { fontSize: 14, color: '#333', marginLeft: 12, flex: 1 },
+    quickQuestions: { marginTop: 25, width: '100%' },
+    quickTitle: { fontSize: 14, fontWeight: '600', color: '#666', marginBottom: 13 },
+    quickBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#f8f9fa', padding: 15, borderRadius: 13, marginBottom: 9, borderWidth: 1, borderColor: '#e0e0e0' },
+    quickBtnText: { fontSize: 13, color: '#333', fontWeight: '500' },
+    msgWrapper: { flexDirection: 'row', marginBottom: 13, maxWidth: '85%' },
     userWrapper: { alignSelf: 'flex-end' },
     assistantWrapper: { alignSelf: 'flex-start' },
-    coachAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#e10600', justifyContent: 'center', alignItems: 'center', marginRight: 8 },
-    msgBubble: { padding: 12, borderRadius: 16 },
+    coachAvatar: { width: 32, height: 32, borderRadius: 16, backgroundColor: '#e10600', justifyContent: 'center', alignItems: 'center', marginRight: 9 },
+    msgBubble: { padding: 13, borderRadius: 17, maxWidth: '100%' },
     userBubble: { backgroundColor: '#e10600', borderBottomRightRadius: 4 },
-    assistantBubble: { backgroundColor: '#fff', borderBottomLeftRadius: 4, elevation: 1 },
-    userText: { fontSize: 14, color: '#fff' },
+    assistantBubble: { backgroundColor: '#fff', borderBottomLeftRadius: 4, shadowColor: '#000', shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.05, shadowRadius: 4, elevation: 1 },
+    userText: { fontSize: 14, color: '#fff', lineHeight: 20 },
     assistantText: { fontSize: 14, color: '#333', lineHeight: 20 },
-    typingIndicator: { flexDirection: 'row', alignItems: 'center', padding: 12 },
-    typingText: { fontSize: 13, color: '#666', marginLeft: 8 },
-    inputContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', padding: 12, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#eee', paddingBottom: Platform.OS === 'ios' ? 32 : 12 },
-    textInput: { flex: 1, backgroundColor: '#f8f9fa', borderRadius: 20, paddingHorizontal: 16, paddingVertical: 10, fontSize: 14 },
-    sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#e10600', justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
+    typingIndicator: { flexDirection: 'row', alignItems: 'center', padding: 13, backgroundColor: '#f0f0f0', borderRadius: 17, alignSelf: 'flex-start', maxWidth: '60%' },
+    typingText: { fontSize: 13, color: '#666', marginLeft: 9 },
+    inputContainer: { position: 'absolute', bottom: 0, left: 0, right: 0, flexDirection: 'row', padding: 13, backgroundColor: '#fff', borderTopWidth: 1, borderTopColor: '#eee', paddingBottom: Platform.OS === 'ios' ? 32 : 13 },
+    textInput: { flex: 1, backgroundColor: '#f8f9fa', borderRadius: 21, paddingHorizontal: 17, paddingVertical: 11, fontSize: 14, color: '#333', maxHeight: 100 },
+    sendBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#e10600', justifyContent: 'center', alignItems: 'center', marginLeft: 9 },
     sendBtnDisabled: { opacity: 0.5 }
 });
