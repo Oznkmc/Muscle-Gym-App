@@ -24,8 +24,14 @@ export default function SignupScreen() {
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // UX: Track focused field to provide visual feedback via conditional styling
   const [focusedField, setFocusedField] = useState<string | null>(null);
 
+  /**
+   * Centralized form state to manage inputs as a single object.
+   * Facilitates cleaner data handling compared to individual state hooks.
+   */
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -34,6 +40,7 @@ export default function SignupScreen() {
     confirmPassword: '',
   });
 
+  // Client-side validation states for real-time UI feedback (borders, icons, error text)
   const [validations, setValidations] = useState({
     email: true,
     phone: true,
@@ -41,7 +48,10 @@ export default function SignupScreen() {
     confirmPassword: true,
   });
 
-  // Şifre gücü kontrolü
+  /**
+   * Password strength algorithm using Regex pattern matching.
+   * Evaluates entropy based on length, casing, digits, and special characters.
+   */
   const getPasswordStrength = (password: string) => {
     if (!password) return { strength: 0, label: '', color: '#ddd' };
 
@@ -61,6 +71,9 @@ export default function SignupScreen() {
 
   const passwordStrength = getPasswordStrength(form.password);
 
+  /** * Regex-based email validation. 
+   * Note: This is a basic pattern; Firebase also performs its own validation on the server side.
+   */
   const validateEmail = (email: string) => {
     const regex = /\S+@\S+\.\S+/;
     return regex.test(email);
@@ -70,6 +83,10 @@ export default function SignupScreen() {
     return phone.length >= 10;
   };
 
+  /**
+   * Comprehensive form validation before triggering API calls.
+   * Updates state to trigger UI changes for specific invalid fields.
+   */
   const validateForm = () => {
     const newValidations = {
       email: validateEmail(form.email.trim()),
@@ -108,6 +125,13 @@ export default function SignupScreen() {
     return true;
   };
 
+  /**
+   * handleRegister: 
+   * 1. Validates form inputs.
+   * 2. Creates user in Firebase Auth.
+   * 3. Sends email verification for account security.
+   * 4. Handles specific Firebase Auth error codes for better user feedback.
+   */
   const handleRegister = async () => {
     if (!validateForm()) return;
 
@@ -115,10 +139,11 @@ export default function SignupScreen() {
     try {
       const userCredential = await createUserWithEmailAndPassword(
         auth,
-        form.email.trim(),
+        form.email.trim(), // Trimming email to avoid white-space issues
         form.password
       );
 
+      // Essential for security: Force user to verify email before accessing data
       await sendEmailVerification(userCredential.user);
 
       Alert.alert(
@@ -134,6 +159,7 @@ export default function SignupScreen() {
       );
 
     } catch (error: any) {
+      // Mapping Firebase technical error codes to user-friendly messages
       let msg = 'Kayıt yapılamadı. Lütfen tekrar dene.';
       if (error.code === 'auth/email-already-in-use') {
         msg = 'Bu e-posta adresi zaten kayıtlı. Giriş yapmayı dene!';
@@ -152,6 +178,7 @@ export default function SignupScreen() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
+      {/* KeyboardAvoidingView prevents the virtual keyboard from covering input fields on iOS/Android */}
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
@@ -159,7 +186,7 @@ export default function SignupScreen() {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="handled" // Allows pressing the 'Register' button without needing to dismiss the keyboard first
         >
           <View style={styles.container}>
 
@@ -183,7 +210,7 @@ export default function SignupScreen() {
 
             <View style={styles.form}>
 
-        
+              {/* Input Group: Name */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Ad Soyad</Text>
                 <View style={[
@@ -212,6 +239,7 @@ export default function SignupScreen() {
                 </View>
               </View>
 
+              {/* Input Group: Email */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>E-posta Adresi</Text>
                 <View style={[
@@ -231,7 +259,7 @@ export default function SignupScreen() {
                     placeholder="ornek@email.com"
                     placeholderTextColor="#aaa"
                     keyboardType="email-address"
-                    autoCapitalize="none"
+                    autoCapitalize="none" // Essential for email inputs
                     value={form.email}
                     onChangeText={email => {
                       setForm({ ...form, email });
@@ -257,7 +285,7 @@ export default function SignupScreen() {
                 )}
               </View>
 
-              {/* Telefon */}
+              {/* Input Group: Phone */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Telefon Numarası</Text>
                 <View style={[
@@ -300,7 +328,7 @@ export default function SignupScreen() {
                 )}
               </View>
 
-              {/* Şifre */}
+              {/* Input Group: Password with Strength Meter */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Şifre</Text>
                 <View style={[
@@ -336,7 +364,7 @@ export default function SignupScreen() {
                   </TouchableOpacity>
                 </View>
 
-                {/* Şifre Gücü Göstergesi */}
+                {/* Password Strength Visual Feedback */}
                 {form.password.length > 0 && (
                   <View style={styles.passwordStrengthContainer}>
                     <View style={styles.strengthBarBackground}>
@@ -356,6 +384,7 @@ export default function SignupScreen() {
                   </View>
                 )}
 
+                {/* Real-time Requirement Validation Checklist */}
                 <View style={styles.passwordRequirements}>
                   <View style={styles.requirementItem}>
                     <Ionicons
@@ -399,7 +428,7 @@ export default function SignupScreen() {
                 </View>
               </View>
 
-        
+              {/* Input Group: Password Confirmation */}
               <View style={styles.inputGroup}>
                 <Text style={styles.inputLabel}>Şifre Tekrar</Text>
                 <View style={[
@@ -471,7 +500,6 @@ export default function SignupScreen() {
                 </View>
               </TouchableOpacity>
 
-            
               <View style={styles.infoBox}>
                 <Ionicons name="information-circle" size={20} color="#007AFF" />
                 <Text style={styles.infoText}>
@@ -481,7 +509,6 @@ export default function SignupScreen() {
 
             </View>
 
-            
             <View style={styles.footerContainer}>
               <View style={styles.divider}>
                 <View style={styles.dividerLine} />
@@ -517,7 +544,7 @@ const styles = StyleSheet.create({
     padding: 24
   },
 
-  
+
   header: {
     alignItems: 'center',
     marginBottom: 32,

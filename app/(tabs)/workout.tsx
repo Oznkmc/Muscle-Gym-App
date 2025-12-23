@@ -12,7 +12,6 @@ import {
 
 const { width } = Dimensions.get('window');
 
-
 const workoutData: any = {
     Bodybuilding: [
         { name: 'Bench Press', icon: 'barbell-outline', target: 'Göğüs', diff: 'Orta' },
@@ -42,8 +41,6 @@ const workoutData: any = {
         { name: 'Plank', icon: 'stopwatch-outline', target: 'Core', diff: 'Başlangıç' },
     ],
 };
-
-
 
 export default function WorkoutScreen() {
     const [discipline, setDiscipline] = useState<null | string>(null);
@@ -80,7 +77,7 @@ export default function WorkoutScreen() {
     const totalVolume = useMemo(() => {
         return history
             .filter(item => isToday(item.createdAt))
-            .reduce((acc, item) => acc + (Number(item.sets) * Number(item.weight)), 0);
+            .reduce((acc, item) => acc + (Number(item.sets || 0) * Number(item.weight || 0)), 0);
     }, [history]);
 
     const todayWorkouts = useMemo(() => {
@@ -100,17 +97,21 @@ export default function WorkoutScreen() {
             snapshot.forEach((doc) => arr.push({ ...doc.data(), id: doc.id }));
             setHistory(arr);
             setLoading(false);
+        }, (error) => {
+            if (error.code !== 'permission-denied') {
+                console.error(error);
+            }
         });
+
         return () => unsubscribe();
     }, [user?.uid]);
 
     const handleSave = async () => {
         if (!selectedEx || !sets) {
-            return Alert.alert("Hata", "En azından hareket ve set sayısı girmelisin.");
+            return Alert.alert("Hata", "Gereken alanları doldurun.");
         }
 
         try {
-
             const exDetail = workoutData[discipline!].find((e: any) => e.name === selectedEx);
 
             await addDoc(collection(db, "userWorkouts"), {
@@ -124,18 +125,18 @@ export default function WorkoutScreen() {
                 createdAt: serverTimestamp()
             });
 
-            Alert.alert("Başarılı! 💪", `${selectedEx} kaydedildi!`);
+            Alert.alert("Başarılı! 💪", "Antrenman kaydedildi.");
             setSelectedEx(null);
             setSets('');
             setReps('');
             setWeight('');
         } catch (e) {
-            Alert.alert("Hata", "Kaydedilemedi.");
+            Alert.alert("Hata", "İşlem başarısız.");
         }
     };
 
     const confirmDelete = (id: string) => {
-        Alert.alert("Kaydı Sil", "Bu antrenmanı silmek istediğine emin misin?", [
+        Alert.alert("Kaydı Sil", "Emin misiniz?", [
             { text: "Vazgeç", style: "cancel" },
             { text: "Sil", style: "destructive", onPress: () => deleteDoc(doc(db, "userWorkouts", id)) }
         ]);
@@ -214,14 +215,13 @@ export default function WorkoutScreen() {
 
                     <View style={styles.inputRow}>
                         <View style={styles.inputWrapper}>
-                            <Text style={styles.inputLabel}>Set Sayısı</Text>
+                            <Text style={styles.inputLabel}>Set</Text>
                             <TextInput
                                 style={styles.input}
                                 keyboardType="numeric"
                                 value={sets}
                                 onChangeText={setSets}
                                 placeholder="3"
-                                placeholderTextColor="#999"
                             />
                         </View>
                         <View style={styles.inputWrapper}>
@@ -232,7 +232,6 @@ export default function WorkoutScreen() {
                                 value={reps}
                                 onChangeText={setReps}
                                 placeholder="10"
-                                placeholderTextColor="#999"
                             />
                         </View>
                     </View>
@@ -244,27 +243,20 @@ export default function WorkoutScreen() {
                             keyboardType="numeric"
                             value={weight}
                             onChangeText={setWeight}
-                            placeholder="Ağırlık girin"
-                            placeholderTextColor="#999"
+                            placeholder="0"
                         />
                     </View>
 
                     <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
                         <Ionicons name="checkmark-circle" size={22} color="#fff" />
-                        <Text style={styles.saveBtnText}>Kaydet ve Bitir</Text>
+                        <Text style={styles.saveBtnText}>Kaydet</Text>
                     </TouchableOpacity>
                 </View>
             )}
 
-            <Text style={styles.listTitle}>📋 Antrenman Geçmişi</Text>
+            <Text style={styles.listTitle}>📋 Geçmiş</Text>
             {loading ? (
-                <ActivityIndicator color="#e10600" size="large" style={{ marginTop: 20 }} />
-            ) : history.length === 0 ? (
-                <View style={styles.emptyBox}>
-                    <Ionicons name="barbell-outline" size={60} color="#ddd" />
-                    <Text style={styles.emptyText}>Henüz antrenman kaydın yok</Text>
-                    <Text style={styles.emptySubText}>Yukarıdan bir disiplin seçerek başla!</Text>
-                </View>
+                <ActivityIndicator color="#e10600" size="large" />
             ) : (
                 history.map((item) => (
                     <View key={item.id} style={styles.historyItem}>
@@ -276,173 +268,65 @@ export default function WorkoutScreen() {
                                 <Text style={styles.itemEx}>{item.exercise}</Text>
                                 {item.target && <Text style={styles.targetTag}>{item.target}</Text>}
                             </View>
-                            <Text style={styles.itemDiscipline}>{item.discipline}</Text>
                             <Text style={styles.itemDetails}>
-                                {item.sets} Set
-                                {item.reps && ` • ${item.reps} Tekrar`}
-                                {item.weight && item.weight !== "0" && ` • ${item.weight}kg`}
-                                {' • '}{formatTime(item.createdAt)}
+                                {item.sets} Set • {item.reps} Tekrar
+                                {item.weight !== "0" && ` • ${item.weight}kg`}
+                                {` • ${formatTime(item.createdAt)}`}
                             </Text>
                         </View>
-                        <TouchableOpacity onPress={() => confirmDelete(item.id)} style={styles.deleteBtn}>
+                        <TouchableOpacity onPress={() => confirmDelete(item.id)}>
                             <Ionicons name="trash-outline" size={20} color="#ff4444" />
                         </TouchableOpacity>
                     </View>
                 ))
             )}
-            <View style={{ height: 120 }} />
+            <View style={{ height: 100 }} />
         </ScrollView>
     );
 }
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#F8F9FB', paddingHorizontal: 20 },
-    header: { marginTop: 60, marginBottom: 20 },
-    mainTitle: { fontSize: 26, fontWeight: '800', color: '#1A1A1A' },
-
-    statsContainer: { marginBottom: 25 },
-    statsCard: {
-        backgroundColor: '#fff',
-        padding: 20,
-        borderRadius: 20,
-        marginBottom: 12,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.08,
-        shadowRadius: 12,
-        elevation: 3
-    },
+    header: { marginTop: 50, marginBottom: 20 },
+    mainTitle: { fontSize: 24, fontWeight: '800' },
+    statsContainer: { marginBottom: 20 },
+    statsCard: { backgroundColor: '#fff', padding: 20, borderRadius: 20, elevation: 2 },
     statsInfo: { flexDirection: 'row', alignItems: 'center' },
-    statsLabel: { color: '#888', fontSize: 13, fontWeight: '500' },
-    statsValue: { color: '#1A1A1A', fontSize: 26, fontWeight: '800', marginTop: 4 },
-
-    miniStatCard: {
-        backgroundColor: '#FFF8E1',
-        padding: 15,
-        borderRadius: 15,
-        flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: 1,
-        borderColor: '#FFE082'
-    },
-    miniStatLabel: { fontSize: 11, color: '#888', fontWeight: '600' },
-    miniStatValue: { fontSize: 16, color: '#1A1A1A', fontWeight: '700' },
-
-    sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 12, color: '#1A1A1A' },
-    cardContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 25 },
-    typeCard: {
-        width: (width - 60) / 3,
-        backgroundColor: '#fff',
-        padding: 18,
-        borderRadius: 18,
-        alignItems: 'center',
-        elevation: 2,
-        borderWidth: 2,
-        borderColor: 'transparent'
-    },
-    activeCard: { backgroundColor: '#e10600', borderColor: '#e10600' },
-    cardText: { fontSize: 11, fontWeight: '700', marginTop: 10, color: '#444' },
+    statsLabel: { color: '#888', fontSize: 12 },
+    statsValue: { fontSize: 24, fontWeight: '800' },
+    miniStatCard: { backgroundColor: '#FFF8E1', padding: 12, borderRadius: 15, flexDirection: 'row', marginTop: 10 },
+    miniStatLabel: { fontSize: 10, color: '#888' },
+    miniStatValue: { fontSize: 14, fontWeight: '700' },
+    sectionTitle: { fontSize: 18, fontWeight: '700', marginBottom: 10 },
+    cardContainer: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 },
+    typeCard: { width: (width - 60) / 3, backgroundColor: '#fff', padding: 15, borderRadius: 15, alignItems: 'center' },
+    activeCard: { backgroundColor: '#e10600' },
+    cardText: { fontSize: 10, fontWeight: '700', marginTop: 5 },
     activeText: { color: '#fff' },
-
-    section: { marginBottom: 25 },
-    subTitle: { fontSize: 17, fontWeight: '700', marginBottom: 12, color: '#333' },
-    exerciseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-    exChip: {
-        backgroundColor: '#fff',
-        paddingHorizontal: 15,
-        paddingVertical: 10,
-        borderRadius: 12,
-        borderWidth: 1.5,
-        borderColor: '#EEE',
-        alignItems: 'center'
-    },
-    activeChip: { backgroundColor: '#333', borderColor: '#333' },
-    exText: { fontSize: 13, fontWeight: '700', color: '#333' },
-    targetText: { fontSize: 10, color: '#e10600', fontWeight: '600', marginTop: 2 },
+    section: { marginBottom: 20 },
+    subTitle: { fontSize: 16, fontWeight: '700', marginBottom: 10 },
+    exerciseGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    exChip: { backgroundColor: '#fff', padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#EEE' },
+    activeChip: { backgroundColor: '#333' },
+    exText: { fontSize: 12, fontWeight: '700' },
+    targetText: { fontSize: 9, color: '#e10600' },
     activeChipText: { color: '#fff' },
     activeTargetText: { color: '#FF9500' },
-
-    formCard: {
-        backgroundColor: '#fff',
-        padding: 20,
-        borderRadius: 20,
-        marginBottom: 25,
-        elevation: 3,
-        borderWidth: 1,
-        borderColor: '#f0f0f0'
-    },
-    formHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
-    formTitle: { fontSize: 19, fontWeight: '800', color: '#e10600' },
-    diffBadge: { backgroundColor: '#F5F5F5', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-    diffText: { fontSize: 10, fontWeight: '700', color: '#666' },
-    inputRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
-    inputWrapper: { flex: 1, marginRight: 10 },
-    inputLabel: { fontSize: 12, color: '#888', marginBottom: 8, fontWeight: '600' },
-    input: {
-        backgroundColor: '#F5F6F8',
-        padding: 15,
-        borderRadius: 12,
-        fontSize: 15,
-        fontWeight: '600',
-        borderWidth: 1,
-        borderColor: '#E8E9EB'
-    },
-    saveBtn: {
-        backgroundColor: '#e10600',
-        padding: 18,
-        borderRadius: 15,
-        alignItems: 'center',
-        flexDirection: 'row',
-        justifyContent: 'center',
-        marginTop: 10
-    },
-    saveBtnText: { color: '#fff', fontWeight: '800', fontSize: 16, marginLeft: 8 },
-
-    listTitle: { fontSize: 18, fontWeight: '700', marginBottom: 15, color: '#333' },
-    historyItem: {
-        backgroundColor: '#fff',
-        padding: 16,
-        borderRadius: 18,
-        marginBottom: 12,
-        flexDirection: 'row',
-        alignItems: 'center',
-        elevation: 1,
-        borderWidth: 1,
-        borderColor: '#f5f5f5'
-    },
-    historyIcon: {
-        width: 42,
-        height: 42,
-        backgroundColor: '#FFF0F0',
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center'
-    },
-    itemEx: { fontSize: 16, fontWeight: '700', color: '#1A1A1A' },
-    targetTag: { fontSize: 9, backgroundColor: '#F0F0F0', color: '#666', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginLeft: 8, fontWeight: '700', overflow: 'hidden' },
-    itemDiscipline: { fontSize: 11, color: '#e10600', fontWeight: '600', marginTop: 2 },
-    itemDetails: { fontSize: 12, color: '#888', marginTop: 4 },
-    deleteBtn: {
-        padding: 8,
-        backgroundColor: '#FFF0F0',
-        borderRadius: 10
-    },
-    emptyBox: {
-        padding: 50,
-        alignItems: 'center',
-        backgroundColor: '#fff',
-        borderRadius: 20,
-        marginVertical: 20
-    },
-    emptyText: {
-        fontSize: 16,
-        color: '#666',
-        fontWeight: '600',
-        marginTop: 15
-    },
-    emptySubText: {
-        fontSize: 13,
-        color: '#999',
-        marginTop: 5
-    }
+    formCard: { backgroundColor: '#fff', padding: 20, borderRadius: 20, elevation: 3 },
+    formHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 15 },
+    formTitle: { fontSize: 18, fontWeight: '800', color: '#e10600' },
+    diffBadge: { backgroundColor: '#F5F5F5', padding: 4, borderRadius: 5 },
+    diffText: { fontSize: 9, fontWeight: '700' },
+    inputRow: { flexDirection: 'row', justifyContent: 'space-between' },
+    inputWrapper: { flex: 1, marginRight: 5, marginBottom: 10 },
+    inputLabel: { fontSize: 11, color: '#888', marginBottom: 5 },
+    input: { backgroundColor: '#F5F6F8', padding: 12, borderRadius: 10, fontSize: 14 },
+    saveBtn: { backgroundColor: '#e10600', padding: 15, borderRadius: 12, flexDirection: 'row', justifyContent: 'center', marginTop: 10 },
+    saveBtnText: { color: '#fff', fontWeight: '800', marginLeft: 5 },
+    listTitle: { fontSize: 18, fontWeight: '700', marginBottom: 10 },
+    historyItem: { backgroundColor: '#fff', padding: 15, borderRadius: 15, marginBottom: 10, flexDirection: 'row', alignItems: 'center' },
+    historyIcon: { width: 40, height: 40, backgroundColor: '#FFF0F0', borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+    itemEx: { fontSize: 15, fontWeight: '700' },
+    targetTag: { fontSize: 8, backgroundColor: '#F0F0F0', padding: 3, borderRadius: 4, marginLeft: 5 },
+    itemDetails: { fontSize: 11, color: '#888', marginTop: 3 }
 });

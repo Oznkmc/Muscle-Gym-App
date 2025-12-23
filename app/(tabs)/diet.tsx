@@ -68,10 +68,9 @@ export default function DietScreen() {
         const startOfToday = new Date();
         startOfToday.setHours(0, 0, 0, 0);
         const todayMeals = myMeals.filter(meal => {
-            if (!meal.createdAt) return false;
-            try { return meal.createdAt.toDate() >= startOfToday; } catch { return false; }
+            const createdAt = meal.createdAt ? meal.createdAt.toDate() : new Date();
+            return createdAt >= startOfToday;
         });
-
         return todayMeals.reduce((acc, meal) => ({
             protein: acc.protein + parseFloat(meal.protein || 0),
             fat: acc.fat + parseFloat(meal.fat || 0),
@@ -104,7 +103,8 @@ export default function DietScreen() {
     };
 
     useEffect(() => {
-        if (!user) {
+        // Kullanıcı yoksa dinleyiciyi hiç başlatma veya kapat
+        if (!user?.uid) {
             setLoading(false);
             return;
         }
@@ -127,7 +127,11 @@ export default function DietScreen() {
                 setLoading(false);
             },
             (error) => {
-                Alert.alert("Hata", "Veriler yüklenemedi: " + error.message);
+                // KRİTİK DÜZELTME: Çıkış yaparken veya yetki değişirken oluşan hatayı susturur.
+                if (error.code === 'permission-denied' || !auth.currentUser) {
+                    return;
+                }
+                console.error("Firestore Error:", error);
                 setLoading(false);
             }
         );
@@ -136,16 +140,11 @@ export default function DietScreen() {
     }, [user?.uid]);
 
     const handleAddMeal = async () => {
-        if (!user) {
-            Alert.alert("Hata", "Giriş yapmalısın!");
-            return;
-        }
-
+        if (!user) return;
         if (!quantity || parseFloat(quantity) <= 0) {
             Alert.alert("Hata", "Geçerli bir miktar girin.");
             return;
         }
-
         try {
             const food = foodDatabase[selectedFood];
             const mealData = {
@@ -159,21 +158,18 @@ export default function DietScreen() {
                 unit: food.unit,
                 category: food.category,
             };
-
             if (editingMeal) {
                 await updateDoc(doc(db, "userDiets", editingMeal.id), mealData);
                 setEditingMeal(null);
-                Alert.alert("Başarılı", "Öğün güncellendi.");
             } else {
                 await addDoc(collection(db, "userDiets"), {
                     ...mealData,
                     createdAt: serverTimestamp()
                 });
-                Alert.alert("Başarılı", "Öğün eklendi.");
             }
             setQuantity("1");
         } catch (e: any) {
-            Alert.alert("Hata", "İşlem başarısız: " + e.message);
+            Alert.alert("Hata", "İşlem başarısız.");
         }
     };
 
@@ -193,7 +189,6 @@ export default function DietScreen() {
     return (
         <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : "height"} style={{ flex: 1 }}>
             <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-
                 <View style={styles.header}>
                     <View>
                         <Text style={styles.headerSubtitle}>Hoş geldin,</Text>
@@ -218,7 +213,6 @@ export default function DietScreen() {
                             <View style={[styles.progressBarFill, { width: `${progressPercentages.kcal}%`, backgroundColor: '#FF6B6B' }]} />
                         </View>
                     </View>
-
                     <View style={styles.summaryRow}>
                         {['protein', 'fat', 'carb'].map((m) => (
                             <View key={m} style={styles.summaryItem}>

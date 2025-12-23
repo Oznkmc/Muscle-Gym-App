@@ -3,10 +3,14 @@ import { StyleSheet, View, Text, ScrollView, TouchableOpacity, ActivityIndicator
 import { useRouter } from 'expo-router';
 import { auth, db } from '../../lib/firebase';
 import { Ionicons } from '@expo/vector-icons';
-// 1. Unsubscribe tipini ekledik
+
 import { collection, query, where, onSnapshot, Unsubscribe } from 'firebase/firestore';
 import { signOut } from 'firebase/auth';
 
+/**
+ * DynamicHomeScreen: Ana dashboard.
+ * Çıkış yaparken oluşan "permission-denied" hatası için optimize edildi.
+ */
 export default function DynamicHomeScreen() {
   const router = useRouter();
   const user = auth.currentUser;
@@ -16,17 +20,17 @@ export default function DynamicHomeScreen() {
   const [workoutCount, setWorkoutCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
-  // 2. TypeScript için kutu tiplerini belirledik: Ya bir fonksiyon ya da null
+  // Dinleyicileri temizlemek için referanslar
   const dietUnsubRef = useRef<Unsubscribe | null>(null);
   const workoutUnsubRef = useRef<Unsubscribe | null>(null);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.uid) return;
 
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
 
-    // 3. Diyet verilerini dinle ve referansa ata
+    // 1. Diet Listener
     const qDiet = query(collection(db, "userDiets"), where("userId", "==", user.uid));
     dietUnsubRef.current = onSnapshot(qDiet, (snapshot) => {
       let totalKcal = 0; let totalProtein = 0;
@@ -41,10 +45,11 @@ export default function DynamicHomeScreen() {
       setDailyKcal(totalKcal);
       setDailyProtein(totalProtein);
     }, (error) => {
-      if (error.code !== 'permission-denied') console.error(error);
+      // Çıkış anındaki yetki hatasını konsola basma
+      if (error.code !== 'permission-denied') console.error("Diet Listener Error:", error);
     });
 
-    // 4. Antrenman sayısını dinle ve referansa ata
+    // 2. Workout Listener
     const qWorkout = query(collection(db, "userWorkouts"), where("userId", "==", user.uid));
     workoutUnsubRef.current = onSnapshot(qWorkout, (snapshot) => {
       let count = 0;
@@ -55,26 +60,34 @@ export default function DynamicHomeScreen() {
       setWorkoutCount(count);
       setLoading(false);
     }, (error) => {
-      if (error.code !== 'permission-denied') console.error(error);
+      if (error.code !== 'permission-denied') console.error("Workout Listener Error:", error);
     });
 
-    // Sayfa kapandığında temizlik
     return () => {
       dietUnsubRef.current?.();
       workoutUnsubRef.current?.();
     };
   }, [user?.uid]);
 
-  // 5. Çıkış yaparken önce dinleyicileri durduruyoruz
   const handleLogout = async () => {
     try {
-      dietUnsubRef.current?.();
-      workoutUnsubRef.current?.();
+      // Önce dinleyicileri durdur ve referansları boşa çıkar
+      if (dietUnsubRef.current) {
+        dietUnsubRef.current();
+        dietUnsubRef.current = null;
+      }
+      if (workoutUnsubRef.current) {
+        workoutUnsubRef.current();
+        workoutUnsubRef.current = null;
+      }
+
+      // Yarış durumunu (race condition) önlemek için çok kısa bekleme
+      await new Promise(resolve => setTimeout(resolve, 150));
 
       await signOut(auth);
       router.replace('/');
     } catch (error) {
-      console.error("Çıkış hatası:", error);
+      console.error("Logout Error:", error);
     }
   };
 
@@ -88,7 +101,7 @@ export default function DynamicHomeScreen() {
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Üst Karşılama */}
+
       <View style={styles.header}>
         <View>
           <Text style={styles.greet}>Bugün Durumun Nedir? ⚡</Text>
@@ -99,7 +112,6 @@ export default function DynamicHomeScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* İSTATİSTİK KARTLARI */}
       <View style={styles.statsRow}>
         <View style={styles.statCard}>
           <Ionicons name="flame" size={28} color="#FF9500" />
@@ -120,7 +132,6 @@ export default function DynamicHomeScreen() {
         </View>
       </View>
 
-      {/* DURUM MESAJI */}
       <View style={styles.infoBox}>
         <Text style={styles.infoText}>
           {dailyKcal === 0
@@ -131,7 +142,6 @@ export default function DynamicHomeScreen() {
         </Text>
       </View>
 
-      {/* HIZLI AKSİYONLAR */}
       <View style={styles.section}>
         <TouchableOpacity style={styles.mainAction} onPress={() => router.push('/diet')}>
           <View style={styles.actionIcon}><Ionicons name="nutrition" size={26} color="#fff" /></View>

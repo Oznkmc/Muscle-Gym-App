@@ -2,7 +2,6 @@ import { useRouter } from 'expo-router';
 import React, { useState } from 'react';
 import {
   StyleSheet,
-  SafeAreaView,
   View,
   Image,
   Text,
@@ -14,7 +13,9 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons'; // İkonlar için
+// 1. DÜZELTME: SafeAreaView artık buradan gelmeli
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 import {
   signInWithEmailAndPassword,
@@ -26,11 +27,11 @@ import { auth } from '../../lib/firebase';
 
 export default function LoginScreen() {
   const router = useRouter();
+
   const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
-  // Validasyon Kontrolü
   const validateEmail = (email: string) => {
     return String(email)
       .toLowerCase()
@@ -65,14 +66,18 @@ export default function LoginScreen() {
             { text: 'Tamam' },
           ]
         );
-        await signOut(auth);
+
+        await signOut(auth); // Burada çıkış yapıldığında diğer ekranlardaki dinleyiciler hata verebilir.
         setLoading(false);
         return;
       }
+
       router.replace('/explore');
     } catch (error: any) {
       let msg = 'Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.';
       if (error.code === 'auth/invalid-credential') msg = 'E-posta veya şifre hatalı.';
+      else if (error.code === 'auth/too-many-requests') msg = 'Çok fazla hatalı deneme. Lütfen biraz bekleyin.';
+
       Alert.alert('Hata', msg);
     } finally {
       setLoading(false);
@@ -109,7 +114,11 @@ export default function LoginScreen() {
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
 
           <View style={styles.header}>
             <View style={styles.logoContainer}>
@@ -124,7 +133,6 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.form}>
-            {/* Email Input */}
             <View style={styles.inputWrapper}>
               <Ionicons name="mail-outline" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
@@ -137,7 +145,6 @@ export default function LoginScreen() {
               />
             </View>
 
-            {/* Password Input */}
             <View style={styles.inputWrapper}>
               <Ionicons name="lock-closed-outline" size={20} color="#666" style={styles.inputIcon} />
               <TextInput
@@ -169,29 +176,14 @@ export default function LoginScreen() {
                 )}
               </View>
             </TouchableOpacity>
-
-            {/* Alternatif Girişler */}
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>Veya şununla devam et</Text>
-              <View style={styles.dividerLine} />
-            </View>
-
-            <View style={styles.socialButtons}>
-              <TouchableOpacity style={styles.socialBtn}>
-                <Ionicons name="logo-google" size={24} color="#DB4437" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.socialBtn}>
-                <Ionicons name="logo-apple" size={24} color="#000" />
-              </TouchableOpacity>
-            </View>
           </View>
 
           <TouchableOpacity
             onPress={() => router.push('/signup')}
             style={styles.footer}>
             <Text style={styles.footerText}>
-              Hesabınız yok mu? <Text style={styles.footerAction}>Kayıt Ol</Text>
+              Hesabınız yok mu? {' '}
+              <Text style={styles.footerAction}>Kayıt Ol</Text>
             </Text>
           </TouchableOpacity>
 
@@ -204,7 +196,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: '#F8F9FB' },
   scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingBottom: 20 },
-  header: { alignItems: 'center', marginTop: 60, marginBottom: 32 },
+  header: { alignItems: 'center', marginTop: 40, marginBottom: 32 },
   logoContainer: {
     width: 100,
     height: 100,
@@ -213,17 +205,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 2,
     borderColor: '#e10600',
-    // Shadow
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
     elevation: 5,
   },
   headerImg: { width: '100%', height: '100%' },
-  title: { fontSize: 32, fontWeight: '800', color: '#1A1A1A', letterSpacing: 0.5 },
+  title: { fontSize: 32, fontWeight: '800', color: '#1A1A1A' },
   subtitle: { fontSize: 16, color: '#666', marginTop: 4 },
-  form: { flex: 1 },
+  form: { marginBottom: 10 },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -234,12 +221,6 @@ const styles = StyleSheet.create({
     height: 60,
     borderWidth: 1,
     borderColor: '#E1E6EF',
-    // Shadow
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
   },
   inputIcon: { marginRight: 12 },
   inputControl: { flex: 1, color: '#1A1A1A', fontSize: 16 },
@@ -251,28 +232,9 @@ const styles = StyleSheet.create({
     height: 60,
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: "#e10600",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
   },
   btnText: { color: '#fff', fontSize: 18, fontWeight: '700' },
-  divider: { flexDirection: 'row', alignItems: 'center', marginVertical: 32 },
-  dividerLine: { flex: 1, height: 1, backgroundColor: '#E1E6EF' },
-  dividerText: { marginHorizontal: 16, color: '#999', fontSize: 14 },
-  socialButtons: { flexDirection: 'row', justifyContent: 'center', gap: 20 },
-  socialBtn: {
-    width: 60,
-    height: 60,
-    borderRadius: 16,
-    backgroundColor: '#FFF',
-    borderWidth: 1,
-    borderColor: '#E1E6EF',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  footer: { marginTop: 32, marginBottom: 16 },
+  footer: { marginTop: 20, marginBottom: 20 },
   footerText: { textAlign: 'center', color: '#666', fontSize: 16 },
   footerAction: { color: '#e10600', fontWeight: '700', textDecorationLine: 'underline' },
 });
