@@ -1,50 +1,73 @@
-# Welcome to your Expo app 👋
+# 🏋️ Yapay Zeka Destekli Fitness Koçu Uygulaması
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Android ve iOS platformlarında çalışan, yapay zeka destekli fitness ve beslenme takip mobil uygulaması.
 
-## Get started
+## 🚀 Proje Hakkında
 
-1. Install dependencies
+Bu uygulama, kullanıcıların:
 
-   ```bash
-   npm install
-   ```
+- Günlük antrenmanlarını kaydetmesini  
+- Set × tekrar × ağırlık üzerinden antrenman hacmini (training volume) hesaplamasını  
+- Kalori ve makro takibi yapmasını  
+- BMI değişimini izlemesini  
+- Yapay zeka destekli kişiselleştirilmiş öneriler almasını  
 
-2. Start the app
+sağlamak amacıyla geliştirilmiştir.
 
-   ```bash
-   npx expo start
-   ```
+Uygulama, kullanıcı verilerini analiz eden LLM tabanlı bir **AI Koç** modülü içerir.
 
-In the output, you'll find options to open the app in a
+---
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+## 🧠 AI Koç (Groq API – Llama 3.3)
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+- Groq API entegrasyonu  
+- Llama 3.3 modeli ile bağlamsal veri analizi  
+- Dinamik prompt oluşturma  
+- Kullanıcı hedeflerine göre kişiselleştirilmiş antrenman ve beslenme önerileri  
+- Mesajlaşma tabanlı gerçek zamanlı yanıt sistemi  
 
-## Get a fresh project
+---
 
-When you're ready, run:
+## 🏗️ Kullanılan Teknolojiler
 
-```bash
-npm run reset-project
-```
+- React Native (Expo)
+- Expo Router
+- Firebase Authentication
+- Firebase Firestore (Gerçek zamanlı veri senkronizasyonu)
+- Groq API (Llama 3.3)
+- React Hooks (useState, useEffect)
+- Lottie Animations
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+---
 
-## Learn more
+## 📊 Temel Özellikler
 
-To learn more about developing your project with Expo, look at the following resources:
+### 🏋️ Antrenman Takibi
+- Set × tekrar × ağırlık hesaplama
+- Günlük antrenman hacmi ölçümü
+- Performans takibi ve gelişim analizi
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### 🥗 Beslenme Takibi
+- Kalori ve makro hesaplama
+- Özelleştirilmiş besin veritabanı
+- BMI hesaplama ve değişim analizi
 
-## Join the community
+### 🤖 Yapay Zeka Destekli Analiz
+- Kullanıcı verilerine göre öneri üretme
+- Diyet ve antrenman optimizasyonu
+- Veri odaklı geri bildirim sistemi
 
-Join our community of developers creating universal apps.
+### 🎨 Kullanıcı Deneyimi (UI/UX)
+- Lottie animasyonları
+- Dinamik ilerleme çubukları (progress bar)
+- Anlık form doğrulama
+- Modern ve akıcı mobil arayüz
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+
+## 🔐 Mimari Yapı
+
+- Firebase Auth ile güvenli kullanıcı doğrulama
+- Firestore ile kullanıcı bazlı gerçek zamanlı veri yönetimi
+- Groq API ile asenkron REST entegrasyonu
+- Component-based mimari ve optimize edilmiş state yönetimi
